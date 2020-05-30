@@ -1,0 +1,3153 @@
+ <!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8' />
+    <title>Ancestor Locator</title>
+    <meta name='robots' content='noindex, nofollow'>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <link href='https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700' rel='stylesheet'>
+    <script src='mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v1.10.1/mapbox-gl.css' rel='stylesheet' />
+    <style>
+      body {
+        color:#404040;
+        font:400 15px/22px 'Source Sans Pro', 'Helvetica Neue', Sans-serif;
+        margin:0;
+        padding:0;
+        -webkit-font-smoothing:antialiased;
+      }
+
+      * {
+        -webkit-box-sizing:border-box;
+        -moz-box-sizing:border-box;
+        box-sizing:border-box;
+      }
+
+      .sidebar {
+        position:absolute;
+        width:25.0000%;
+        height:100%;
+        top:0;left:0;
+        overflow:hidden;
+        border-right:1px solid rgba(0,0,0,0.25);
+      }
+      .pad2 {
+        padding:20px;
+      }
+
+      .map {
+        position:absolute;
+        left:25.0000%;
+        width:75.0000%;
+        top:0;bottom:0;
+      }
+
+      h1 {
+        font-size:22px;
+        margin:0;
+        font-weight:400;
+        line-height: 20px;
+        padding: 20px 2px;
+      }
+
+      a {
+        color:rgb(223, 222, 178);
+        text-decoration:none;
+      }
+
+      a:hover {
+        color:#fff;
+      }
+
+      .heading {
+        background-image: linear-gradient(to bottom, rgba(27,3,58,1), rgba(65,40,97,1));
+        border-bottom:1px solid #eee;
+        min-height:60px;
+        line-height:60px;
+        padding:0 10px;
+        background-color: #2E0A66;
+        color: #fff;
+      }
+
+      .listings {
+        height:100%;
+        overflow:auto;
+        padding-bottom:60px;
+      }
+
+      .listings .item {
+        display:block;
+        background-image: linear-gradient(to bottom, rgba(242,221,178,1), rgba(244,219,169,1));
+        border-bottom:5px ridge #642E06;
+        padding:10px;
+        text-decoration:none;
+      }
+
+      .listings .item:last-child { border-bottom:none; }
+      .listings .item .title {
+        display:block;
+        color:#1E0465;
+        font-weight:700;
+      }
+
+      .listings .item .title small { font-weight:400; }
+      .listings .item.active .title,
+      .listings .item .title:hover { color:#4B031B; }
+      .listings .item.active {
+        background-color:#f8f8f8;
+      }
+      ::-webkit-scrollbar {
+        width:10px;
+        height:3px;
+        border-left:0;
+        background:rgba(0,0,0,0.1);
+      }
+      ::-webkit-scrollbar-track {
+        background:none;
+      }
+      ::-webkit-scrollbar-thumb {
+        background-image: linear-gradient(to bottom, rgba(175, 96, 0, 1), rgba(248, 196, 113, 1));
+        border-radius:0;
+      }
+
+      .marker {
+        border: none;
+        cursor: pointer;
+        height: 24px;
+        width: 24px;
+        background-image: url(markers.png);
+        background-color: rgba(0, 0, 0, 0);
+      }
+
+      .clearfix { display:block; }
+      .clearfix:after {
+        content:'.';
+        display:block;
+        height:0;
+        clear:both;
+        visibility:hidden;
+      }
+
+      /* Marker tweaks */
+      .mapboxgl-popup {
+        padding-bottom: 50px;
+      }
+
+      .mapboxgl-popup-close-button {
+        display:none;
+      }
+      .mapboxgl-popup-content {
+        font:400 15px/22px 'Source Sans Pro', 'Helvetica Neue', Sans-serif;
+        padding:0;
+        width:350px;
+      }
+      .mapboxgl-popup-content-wrapper {
+        padding:1%;
+      }
+      .mapboxgl-popup-content h3 {
+        background-image: linear-gradient(to bottom, rgba(27,3,58,1), rgba(65,40,97,1));
+        color:#fff;
+        margin:0;
+        display:block;
+        padding:10px;
+        border-radius:3px 3px 0 0;
+        font-weight:700;
+        margin-top:-15px;
+      }
+
+      .mapboxgl-popup-content h4 {
+        margin:0;
+        display:block;
+        padding: 10px 10px 10px 10px;
+        font-weight:400;
+        background-image: linear-gradient(to bottom, rgba(242,221,178,1), rgba(239,203,131,1));
+      }
+
+      .mapboxgl-popup-content div {
+        padding:10px;
+      }
+
+      .mapboxgl-container .leaflet-marker-icon {
+        cursor:pointer;
+      }
+
+      .mapboxgl-popup-anchor-top > .mapboxgl-popup-content {
+        margin-top: 15px;
+      }
+
+      .mapboxgl-popup-anchor-top > .mapboxgl-popup-tip {
+        border-bottom-color: #91c949;
+      }
+    </style>
+  </head>
+  <body>
+    <div class='sidebar'>
+      <div class='heading'>
+        <h1><center><a href="index.html">Switch Between Ancestor Timeline (Leonides of Sparta)</a></center></h1>
+      </div>
+      <div id='listings' class='listings'></div>
+    </div>
+    <div id='map' class='map'></div>
+    <script>
+      // This will let you use the .remove() function later on
+      if (!('remove' in Element.prototype)) {
+        Element.prototype.remove = function() {
+          if (this.parentNode) {
+              this.parentNode.removeChild(this);
+          }
+        };
+      }
+
+      mapboxgl.accessToken = 'pk.eyJ1IjoidGhpbmtsYXRlciIsImEiOiJja2FxODlhaDUwNmRwMnJwcmd6ZmkycTVhIn0.iWQtEyUgJCH9Ql9SWKFtDw';
+      /** 
+       * Add the map to the page
+      */
+      var map = new mapboxgl.Map({
+        container: 'map',
+        attributionControl: false,
+        style: 'mapbox://styles/thinklater/ckaqa1qot091h1iqhgur74yq6', 
+        center: [24.43300509452819824, 49.15749272621892],
+        zoom: 3,
+        scrollZoom: true
+      });
+
+      var ancestors = {
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Jean Mary",
+        "LastName": "Lovell",
+        "Relation": "Grandmother",
+        "Spouse": "Eric Raymond Cook (1925-1997)",
+        "Born": "26 May 1929",
+        "Died": "Present",
+        "Children": "Maggie Cook, Gillian Cook",
+        "Bio": "Born 1929 in Wymington. Worked at EP Roses, Bedford (now Debenham's), learnt needlework, loved the work but the people were dreadful. Worked at Meltis, Miller Road, Bedford. Met husband Eric Raymond Cook 1946. Got married at Half Moon Pub, Kempston 1949. Lived in Ditmas Avenue, Kempston, had daughter Margaret Ann in 1959 at North Wing Hospital. Moved to Wootton 1962 and had daughter Gillian, born at home. Moved to Bedford, Hawbury Street in 1977 for 2 years. Moved to Exeter Walk, Bedford in 1979. Crossword Wizard."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.43300509452819824,
+          52.15749272621892
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Eric Raymond",
+        "LastName": "Cook",
+        "Relation": "Grandfather",
+        "Spouse": "Jean Mary Lovell (1929 - Present)",
+        "Born": "8 June 1925",
+        "Died": "4 February 1997",
+        "Children": "Maggie Cook, Gillian Cook",
+        "Bio": "Known to friends and family as Ray. Born in 1925, his grandparents lived on a farm (Priory Farm, Dudley?) where he was born. Went to Dixons Green, Dudley. Volunteered into RAF at 17 in 1942 during WWII and became a Lancaster Air Gunner Wireless Operator, came out in 1946. His father worked for Co-Op cannery and company moved from Dudley to Kelvin Avenue Bedford and the family to Kempston, where his father developed Parkinson's Disease. He met Jean Mary Lovell in Summer 1946. Soon after leaving RAF, he worked for Inland Revenue. Worked for furniture company called Mathisons and then went to 3M in 1960s. He became unwell while at 3M and retired in the 1980s. He loved Werthers Originals, Laurel & Hardy, especially loved listening to music and photography and had his own darkroom while living in Kempston, loved walking and reading when he could."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.43299436569213867,
+          52.1574236144635
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Charles Francis",
+        "LastName": "Lovell",
+        "Relation": "Great Grandfather",
+        "Spouse": "Mabel Bessie Balderson (1893-1975",
+        "Born": "4 October 1888",
+        "Died": "10 January 1955",
+        "Children": "Lilian Joan Balderson, Jean Mary Lovell, Margaret Elizabeth Lovell, Richard Alan Lovell",
+        "Bio": "Born in Greyfriars, Bedford. Lived at Number 2 & Number 6 Nelson Street, Queens Park, Bedford. Worked at WH Allen, Queen's Park (by QP bridge). Joined Armed Forces as a young man and fought in first World War. Came home and joined the police and became a Constable, promoted to Sergeant. Spent 30-odd years in the police force. Retired to Bedford Road, Kempston. Got bored and took a job at Igranic Sports Pavilion, Kempston. Managed the Half Moon pub on Kempston High Street where he died. Mabel Bessie (wife) looked after the pub until 1950s."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.6976318359375,
+          52.30176096373671
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Mabel Bessie",
+        "LastName": "Balderson",
+        "Relation": "Great Grandmother",
+        "Spouse": "Charles Francis Lovell (1893-1975)",
+        "Born": "13 January 1893",
+        "Died": "27 January 1975",
+        "Children": "Lilian Joan Balderson, Jean Mary Lovell, Margaret Elizabeth Lovell, Richard Alan Lovell",
+        "Bio": "Born in Spratton, went into servicing working in Rushden Hall for a family. Got married in Rushden Church to Charles Francis Lovell. Went to live at Wymington (Northampton border) where daughter Jean was born. Moved to Riseley where daughter Margaret was born. Moved to Eaton Socon. Moved to 68 Bedford Road, Kempston (an ordinary family house with 1 room used as the local Kempston Police Station). Moved to another police station until husband Charles retired from police force c1941. Moved to Spring Road, where husband worked at Igranic Sports Field. Husband took over Half Moon Pub, Kempston. Daughter Jean married her husband Eric Raymond Cook in 1949 at the pub. Husband passed away 1955, and she ran the pub a couple more years with son Richard (known as Lally) and daughter Margaret. Left pub for Spring Road, Kempston, where she developed dementia and entered Cedars Nursing Home, Ampthill, where she passed on."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9534072875976561,
+          52.3242191454936
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Albert",
+        "LastName": "Cook",
+        "Relation": "Great Grandfather",
+        "Spouse": "Doris Woodhall",
+        "Born": "Unknown",
+        "Died": "Deceased",
+        "Children": "Eric Raymond Cook, Ken Cook",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.0827674865722656,
+          52.50911685569952
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Doris",
+        "LastName": "Woodhall",
+        "Relation": "Great Grandmother",
+        "Spouse": "Albert Cook",
+        "Born": "Unknown",
+        "Died": "Deceased",
+        "Children": "Eric Raymond Cook, Ken Cook",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.074184417724609,
+          52.50995268098114
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "James",
+        "LastName": "Lovell",
+        "Relation": "2nd Great Grandfather",
+        "Spouse": "Lucy Ann Millard (1858-Deceased)",
+        "Born": 1858,
+        "Died": "Deceased",
+        "Children": "Ellen Elizabeth Lovell, Joseph Franklin Lovell, William Millard Lovell, Charles Francis Lovell, Annie Jane Lovell, Arthur James Lovell, Eltie Maud Lovell, Harry S Lovell",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.46348571777343744,
+          52.13712315244718
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Lucy Ann",
+        "LastName": "Millard",
+        "Relation": "2nd Great Grandmother",
+        "Spouse": "James Lovell (1858-Deceased)",
+        "Born": 1858,
+        "Died": "Deceased",
+        "Children": "Ellen Elizabeth Lovell, Joseph Franklin Lovell, William Millard Lovell, Charles Francis Lovell, Annie Jane Lovell, Arthur James Lovell, Eltie Maud Lovell, Harry S Lovell",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.2629852294921875,
+          52.080771955691176
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Robert",
+        "LastName": "Balderson",
+        "Relation": "2nd Great Grandfather",
+        "Spouse": "Elizabeth Hitchcock (1861-Deceased)",
+        "Born": 1862,
+        "Died": "Deceased",
+        "Children": "William Richard Balderson, Robert Samuel Balderson, Frederick Harold Balderson, Daisy Elizabeth Jane Balderson, Mabel Bessie Balderson, Alfred Walter Balderson, Walter Alfred Balderson, Norah Kathaline Jane Balderson.",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9505748748779296,
+          52.32358963210519
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Elizabeth",
+        "LastName": "Hitchcock",
+        "Relation": "2nd Great Grandmother",
+        "Spouse": "Robert Balderson (1861-Deceased)",
+        "Born": "24 December 1861",
+        "Died": "Deceased",
+        "Children": "William Richard Balderson, Robert Samuel Balderson, Frederick Harold Balderson, Daisy Elizabeth Jane Balderson, Mabel Bessie Balderson, Alfred Walter Balderson, Walter Alfred Balderson, Norah Kathaline Jane Balderson.",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9469699859619141,
+          52.32432406352089
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Richard",
+        "LastName": "Balderson",
+        "Relation": "3rd Great Grandfather",
+        "Spouse": "Jane Summerfield (1829-1901)",
+        "Born": "April 1837",
+        "Died": "December 1901",
+        "Children": "William Balderson, Robert Balderson, Sarah Ann Balderson, Fanny Balderson, Mary Ann Balderson, Hannah Balderson",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9468841552734375,
+          52.32201580944855
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Jane",
+        "LastName": "Summerfield",
+        "Relation": "3rd Great Grandmother",
+        "Spouse": "Richard Balderson (1837 - 1901)",
+        "Born": 1829,
+        "Died": "December 1901",
+        "Children": "William Balderson, Robert Balderson, Sarah Ann Balderson, Fanny Balderson, Mary Ann Balderson, Hannah Balderson",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9029388427734374,
+          52.33009417188445
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "William",
+        "LastName": "Hitchcock",
+        "Relation": "3rd Great Grandfather",
+        "Spouse": "Elizabeth Adnitt (1824-1910)",
+        "Born": 1826,
+        "Died": "Deceased",
+        "Children": "Elizabeth Hitchcock",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9159851074218749,
+          52.175616047410195
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Elizabeth",
+        "LastName": "Adnitt",
+        "Relation": "3rd Great Grandfather",
+        "Spouse": "William Hitchcock (1826-Deceased)",
+        "Born": 1824,
+        "Died": 1910,
+        "Children": "Elizabeth Hitchcock",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9008789062499999,
+          52.178142460091195
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "John",
+        "LastName": "Lovell",
+        "Relation": "3rd Great Grandfather",
+        "Spouse": "Elizabeth Franklin (1830-Deceased)",
+        "Born": 1820,
+        "Died": "Deceased",
+        "Children": "William Lovell, Sarah Lovell, Mary Lovell, James Lovell, John Lovell, Jane Lovell, Joseph Lovell, Annie Lovell, Steven Lovell",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.8808803558349609,
+          52.2059235296225
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Elizabeth",
+        "LastName": "Franklin",
+        "Relation": "3rd Great Grandmother",
+        "Spouse": "John Lovell",
+        "Born": 1830,
+        "Died": "Deceased",
+        "Children": "William Lovell, Sarah Lovell, Mary Lovell, James Lovell, John Lovell, Jane Lovell, Joseph Lovell, Annie Lovell, Steven Lovell",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9819030761718749,
+          51.998410382390325
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "James",
+        "LastName": "Millard",
+        "Relation": "3rd Great Grandfather",
+        "Spouse": "Rebecca Smith (1834-Deceased)",
+        "Born": 1838,
+        "Died": "Deceased",
+        "Children": "Lucy Ann Millard, Emily Matilda Millard, Pricilla Ellen Millard, Maud Mary Millard, Alice Maud Millard, Lizzie Millard, Eleanor Millard, Henry James Millard, Mary Elizabeth Millard",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.25144100189208984,
+          52.08554532633192
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Rebecca",
+        "LastName": "Smith",
+        "Relation": "3rd Great Grandmother",
+        "Spouse": "James Millard (1838-Deceased)",
+        "Born": 1834,
+        "Died": "Deceased",
+        "Children": "Lucy Ann Millard, Emily Matilda Millard, Pricilla Ellen Millard, Maud Mary Millard, Alice Maud Millard, Lizzie Millard, Eleanor Millard, Henry James Millard, Mary Elizabeth Millard",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.09724617004394531,
+          52.10012599789316
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Samuel",
+        "LastName": "Lovell",
+        "Relation": "4th Great Grandfather",
+        "Spouse": "Sarah Chapman (1798-1835)",
+        "Born": 1798,
+        "Died": "Deceased",
+        "Children": "William Lovell, John Lovell, George Lovell, James Lovell",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.49103736877441406,
+          52.11752164751784
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Sarah",
+        "LastName": "Chapman",
+        "Relation": "4th Great Grandmother",
+        "Spouse": "Samuel Lovell (1798-Deceased)",
+        "Born": 1798,
+        "Died": "Deceased",
+        "Children": "William Lovell, John Lovell, George Lovell, James Lovell",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5055427551269531,
+          52.10819209746323
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "George",
+        "LastName": "Franklin",
+        "Relation": "4th Great Grandfather",
+        "Spouse": "Rebecca (1801-Deceased)",
+        "Born": 1801,
+        "Died": "Deceased",
+        "Children": "Mary Mayo Franklin, Thomas Franklin, John Franklin, Elizabeth Franklin, Jane Thirsa Franklin",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.7103347778320312,
+          51.70362982097814
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "Spouse": "Mary Lincoln (1757-1823)",
+        "FirstName": "Thomas",
+        "LastName": "Lovell",
+        "Relation": "5th Great Grandfather",
+        "Born": "01 June 1756",
+        "Died": "October 1826",
+        "Children": "Sarah Loveland, Charles Lincoln Lovell, Frances Lovell, George Lovell, William Lovell, Mary Lovell, James Lovell, John Lovell, Margaret Love, Edward Loveland, Thomas Lovell, Frances Fanny Lovell, Henry Lovell, Samuel Lovell",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.008754730224609375,
+          53.092529321544035
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Mary",
+        "LastName": "Lincoln",
+        "Relation": "5th Great Grandmother",
+        "Spouse": "Thomas Lovell  (1756 - 1826)",
+        "Born": "18 December 1757",
+        "Died": "16 March 1823",
+        "Children": "Sarah Loveland, Charles Lincoln Lovell, Frances Lovell, George Lovell, William Lovell, Mary Lovell, James Lovell, John Lovell, Margaret Love, Edward Loveland, Thomas Lovell, Frances Fanny Lovell, Henry Lovell, Samuel Lovell",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.1972522735595703,
+          53.47154722108681
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "John",
+        "LastName": "Lincoln",
+        "Relation": "6th Great Grandfather",
+        "Spouse": "Ann ",
+        "Born": "c1730",
+        "Died": "c1800",
+        "Children": "John Lincoln, Mary Lincoln, Robert Lincoln, Benjamin Courbould Lincoln",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.7072448730468749,
+          53.23316704834061
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "William",
+        "LastName": "Chapman",
+        "Relation": "5th Great Grandfather",
+        "Spouse": "Frances Dudley (1772-1842)",
+        "Born": "9 May 1773",
+        "Died": "Deceased",
+        "Children": "William Henry Chapman, George Chapman, Sarah Chapman, Mary Chapman, Henry Chapman",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.17629623413085938,
+          52.0970151514275
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Frances",
+        "LastName": "Dudley",
+        "Relation": "5th Great Grandmother",
+        "Spouse": "William Chapman (1773-Deceased)",
+        "Born": 1772,
+        "Died": 1842,
+        "Children": "William Henry Chapman, George Chapman, Sarah Chapman, Mary Chapman, Henry Chapman",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5065727233886719,
+          52.11135487553742
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "William",
+        "LastName": "Dudley",
+        "Relation": "6th Great Grandfather",
+        "Spouse": "Frances Walker (1750-1820)",
+        "Born": "22 March 1750",
+        "Died": "31 May 1829",
+        "Children": "Frances Dudley, Mary Dudley, Anne Dudley, William Dudley, John Goodhall Dudley, Sophia Dudley, Phoebe Dudley, William Dudley, Henry Dudley",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5568695068359375,
+          52.0404548641514
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Frances",
+        "LastName": "Walker",
+        "Relation": "6th Great Grandmother",
+        "Spouse": "William Dudley (1750-1829)",
+        "Born": 1750,
+        "Died": "5 November 1820",
+        "Children": "Frances Dudley, Mary Dudley, Anne Dudley, William Dudley, John Goodhall Dudley, Sophia Dudley, Phoebe Dudley, William Dudley, Henry Dudley",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.61248779296875,
+          52.11783786924036
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "John",
+        "LastName": "Dudley",
+        "Relation": "7th Great Grandfather",
+        "Spouse": "Elizabeth Read (1726-Deceased)",
+        "Born": 1727,
+        "Died": "15 April 1770",
+        "Children": "William Dudley, Anne Dudley, Elizabeth Dudley, John Dudley, Jane Dudley",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5330085754394531,
+          51.951988842697226
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Elizabeth",
+        "LastName": "Read",
+        "Relation": "7th Great Grandmother",
+        "Spouse": "John Dudley (1727-1770)",
+        "Born": 1726,
+        "Died": "Deceased",
+        "Children": "William Dudley, Anne Dudley, Elizabeth Dudley, John Dudley, Jane Dudley",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.4998779296875,
+          52.124873222331125
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Henry",
+        "LastName": "Dudley",
+        "Relation": "8th Great Grandfather",
+        "Spouse": "Jane Worland (1691-1730)",
+        "Born": "16 February 1700",
+        "Died": "23 January 1753",
+        "Children": "Joseph Dudley, John Dudley",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5034828186035156,
+          52.14086332002992
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Jane",
+        "LastName": "Worland",
+        "Relation": "8th Great Grandmother",
+        "Spouse": "Henry Dudley (1700 - 1753)",
+        "Born": 1691,
+        "Died": "December 1730",
+        "Children": "Joseph Dudley, John Dudley",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.3905296325683593,
+          52.25402575698262
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Israel",
+        "LastName": "Dudley",
+        "Relation": "9th Great Grandfather",
+        "Spouse": "Helan Woodward (1651-Deceased)",
+        "Born": 1655,
+        "Died": "16 June 1708",
+        "Children": "Elizabeth Dudley, Isaac Dudley, Woodward Dudley, Ellen Dudley, Elizabeth Dudley, Mary Dudley, Ann Dudley, John Dudley, Henry Dudley",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5592727661132812,
+          52.1674568599227
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Helan",
+        "LastName": "Woodward",
+        "Relation": "9th Great Grandmother",
+        "Spouse": "Israel Dudley (1655 - 1708)",
+        "Born": "14 November 1651",
+        "Died": "Deceased",
+        "Children": "Elizabeth Dudley, Isaac Dudley, Woodward Dudley, Ellen Dudley, Elizabeth Dudley, Mary Dudley, Ann Dudley, John Dudley, Henry Dudley",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5104351043701172,
+          52.141600780793404
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Henry",
+        "LastName": "Woodward",
+        "Relation": "10th Great Grandfather",
+        "Spouse": "Elizabeth Scrivener (1620-1720)",
+        "Born": 1629,
+        "Died": 1690,
+        "Children": "Helan Woodward, John Woodward, Ann Woodward, Mary Woodward, Ann Woodward, Mary Woodward, Thomas Woodward, Henry Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5054569244384766,
+          52.13822943190593
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Elizabeth",
+        "LastName": "Scrivener",
+        "Relation": "10th Great Grandmother",
+        "Spouse": "Henry Woodward (1629-1690)",
+        "Born": 1629,
+        "Died": 1720,
+        "Children": "Helan Woodward, John Woodward, Ann Woodward, Mary Woodward, Ann Woodward, Mary Woodward, Thomas Woodward, Henry Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5221080780029297,
+          52.13564807042853
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "John",
+        "LastName": "Woodward",
+        "Relation": "11th Great Grandfather",
+        "Spouse": "Joan Brooks (1601-1652)",
+        "Born": 1602,
+        "Died": "Deceased",
+        "Children": "Henry Woodward, John Woodward, Henry Woodward, Wll Woodward, Rebecca Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5735206604003906,
+          52.13738655481045
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Joan",
+        "LastName": "Brooks",
+        "Relation": "11th Great Grandmother",
+        "Spouse": "John Woodward (1602-Deceased)",
+        "Born": "20 March 1601",
+        "Died": "26 February 1652",
+        "Children": "Henry Woodward, John Woodward, Henry Woodward, Wll Woodward, Rebecca Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.4888057708740234,
+          52.10745408363126
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "William",
+        "LastName": "Woodward",
+        "Relation": "12th Great Grandfather",
+        "Spouse": "Elizabeth Oldsbury (1571-Deceased)",
+        "Born": 1576,
+        "Died": 1630,
+        "Children": "John Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.49773216247558594,
+          52.144129124993185
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Elizabeth",
+        "LastName": "Oldsbury",
+        "Relation": "12th Great Grandmother",
+        "Spouse": "William Woodward (1576 - 1630)",
+        "Born": 1571,
+        "Died": "Deceased",
+        "Children": "John Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.8598785400390625,
+          52.70301871296324
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Henry",
+        "LastName": "Woodward",
+        "Relation": "13th Great Grandfather",
+        "Spouse": "Alice Gould (1555 - 1613)",
+        "Born": 1542,
+        "Died": "August 1621",
+        "Children": "Alice Woodward, William Woodward, Reginald Reynold Woodward, John Woodward, Constance Woodward, Andrew Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9455752372741698,
+          52.22778627553807
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Alice",
+        "LastName": "Gould",
+        "Relation": "13th Great Grandmother",
+        "Spouse": "Henry Woodward (1542 - 1621)",
+        "Born": 1555,
+        "Died": 1613,
+        "Children": "Alice Woodward, William Woodward, Reginald Reynold Woodward, John Woodward, Constance Woodward, Andrew Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5141258239746094,
+          52.13190746491096
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "George Clerke of Windsor Castle",
+        "LastName": "Woodward",
+        "Relation": "14th Great Grandfather",
+        "Spouse": "Lady Agnes Mychell (1511 - 1573)",
+        "Born": 1507,
+        "Died": "March 1552",
+        "Children": "Sir John Woodward, Margaret Woodward, Richard Woodward, Henry Woodward, William Woodward, George Woodward, Katharine Woodward, Elizabeth Woodward, Emma Woodward, Anne Woodward, Alice Woodward, Jacamina Woodward"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9380435943603515,
+          52.22690566338861
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Lady Agnes",
+        "LastName": "Mychell",
+        "Relation": "14th Great Grandmother",
+        "Spouse": "George Clerke of Windsor Castle Woodward (1507-1552)",
+        "Born": 1511,
+        "Died": "3 February 1573",
+        "Children": "Sir John Woodward, Margaret Woodward, Richard Woodward, Henry Woodward, William Woodward, George Woodward, Katharine Woodward, Elizabeth Woodward, Emma Woodward, Anne Woodward, Alice Woodward, Jacamina Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.7581210136413574,
+          52.00370773254271
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "John",
+        "LastName": "Woodward",
+        "Relation": "15th Great Grandfather",
+        "Spouse": "Marjorie Collingridge (1481 - 1560)",
+        "Born": 1477,
+        "Died": "8 July 1566",
+        "Children": "George Clerke of Windsor Castle Woodward, Maria Woodward, John  Woodward Sr, Anne Woodward, Robertus Woodward, Martius Woodward, Richardus Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.6925086975097656,
+          53.57268349484011
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "Died": "1 December 1560",
+        "Born": 1481,
+        "Spouse": "John Woodward (1477 - 1566)",
+        "Relation": "15th Great Grandmother",
+        "LastName": "Collingridge",
+        "FirstName": "Marjorie",
+        "Children": "George Clerke of Windsor Castle Woodward, Maria Woodward, John  Woodward Sr, Anne Woodward, Robertus Woodward, Martius Woodward, Richardus Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.8507537841796875,
+          51.80712881576055
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "George",
+        "LastName": "Woodward II",
+        "Relation": "16th Great Grandfather",
+        "Spouse": "Bridgett Upton (1458 - 1545)",
+        "Born": 1450,
+        "Died": "30 August 1545",
+        "Children": "Hugh Woodward, Lord Hugh Woodward of Shevington Manor, John Woodward, William Woodward, Symon Woodward, Ralph Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.6894187927246094,
+          53.57283639401199
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Bridgett",
+        "LastName": "Upton",
+        "Relation": "16th Great Grandmother",
+        "Spouse": "George Woodward II (1450 - 1545)",
+        "Born": 1458,
+        "Died": "30 August 1545",
+        "Children": "Hugh Woodward, Lord Hugh Woodward of Shevington Manor, John Woodward, William Woodward, Symon Woodward, Ralph Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.8510971069335938,
+          51.817210992860566
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "George",
+        "LastName": "Woodward",
+        "Relation": "17th Great Grandfather",
+        "Spouse": "Agnes Ann Corbett (1427 - 1457)",
+        "Born": 1430,
+        "Died": 1499,
+        "Children": "George Woodward II, Lawrence Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.683582305908203,
+          53.574620176832404
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Agnes Ann",
+        "LastName": "Corbett",
+        "Relation": "17th Great Grandmother",
+        "Spouse": "George Woodward (1430 - 1499)",
+        "Born": 1427,
+        "Died": 1457,
+        "Children": "George Woodward II, Lawrence Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.679462432861328,
+          53.5753846321476
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "William",
+        "LastName": "Stanley",
+        "Relation": "18th Great Grandfather",
+        "Spouse": "Joan de Beaumont, Baroness Lovell (1435 - 1466)",
+        "Born": "November 23 1437",
+        "Died": "10 February 1495",
+        "Children": "Agnes Ann Corbett, William Stanley, William Stanley, William Stanley Jr, Joan Cressett, Catherine Stanley, Francis Lovell, Anne Stanley, Joan Lovell, Richard Stanley, George Stanley, John Stanley, Thomas Stanley, William Stanley, Lady Margaret Anne Stanley, Edward Stanley Lord Mounteagle, Agnes Stanley",
+        "Bio": "Knight of the Garter"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.8224563598632812,
+          53.59270857890206
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Sir Thomas",
+        "LastName": "Stanley",
+        "Relation": "19th Great Grandfather",
+        "Spouse": "Lady Joanna Goushill (1404 - 1466)",
+        "Born": "23 October 1406",
+        "Died": "20 February 1459",
+        "Children": "Lady Elizabeth Stanley, Katherine Stanley, Lady Margaret Stanley, Thomas Stanley 1st Earl of Derby, William Stanley, James Stanley, Sir John Stanley Esq",
+        "Bio": "1st Baron Stanley"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.8432488441467285,
+          53.59750962192851
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Lady Johanna",
+        "LastName": "Goushill",
+        "Relation": "19th Great Grandmother",
+        "Spouse": "Sir Thomas Stanley 1st Baron Stanley (1406 - 1459)",
+        "Born": "1 November 1404",
+        "Died": "27 April 1466",
+        "Children": "Lady Elizabeth Stanley, Katherine Stanley, Lady Margaret Stanley, Thomas Stanley 1st Earl of Derby, William Stanley, James Stanley, Sir John Stanley Esq",
+        "Bio": "Joan Gousell (Goushill) was the daughter and coheir of Sir Robert Goushill of Hoveringham, Nottinghamshire, by Elizabeth, the twice widowed daughter of Richard FitzAlan, Earl of Arundel. Elizabeth's first marriage was to Sir William de Montagu, and her second to Thomas de Mowbray, 1st Duke of Norfolk. Joan married Sir Thomas Stanley, KG, Lord of Lathom and Knowsley, 1st Baron Stanley, Lord Lieutenant of Ireland, King's Chamberlain, Justice of the Counties of Chester, Flint and North Wales. Sir Thomas Stanley was the eldest son and of Sir John Stanley and Isabell Harington, daughter of Robert de Harington and Isabel Loring. Joan's husband, Sir Thomas, died on February 11, 1458/1459. It was through the effort of Joan Gousell's and Sir Thomas Stanley's sons, Thomas and William who turned against Richard III at the Battle of Bosworth Field, and their son-in-law Sir John Savage who was commander of the left wing of Henry Tudor's army that gave the crown to Henry Tudor."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9609603881835936,
+          53.01416360329406
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Sir John",
+        "LastName": "Stanley II, King of Mann",
+        "Relation": "20th Great Grandfather",
+        "Spouse": "Elizabeth Isabel Harrington (1385 - 1457)",
+        "Born": "1 November 1386",
+        "Died": "27 November 1437",
+        "Children": "Isabel Maud de Stanley, Sir Thomas Stanley 1st Baron Stanley, Richard Stanley, Edward Stanley, Lady Alice Stanley, Isabel Margaret Stanley, Edward Archdeacon of Chester Stanley, William VII Stanley, John Stanley III, Elizabeth Stanley, James Stanley, Katherine Stanley",
+        "Bio": "He may justly be considered an enlightened and upright ruler, much in advance of his time. He caused the ancient laws and constitutions of his little kingdom to be reduced to writing, he humbled the overbearing ecclesiastical authorities, and, after he had practically concentrated all power into his own hands, he wisely conceded a representative form of government. (Appraisal by AW Moore, Manx antiquary and Speaker of the House of Keys."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.8072214126586914,
+          53.58679885390294
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Elizabeth Isabel",
+        "LastName": "Harrington",
+        "Relation": "20th Great Grandmother",
+        "Spouse": "Sir John Stanley II, King of Mann",
+        "Born": 1385,
+        "Died": "30 September 1457",
+        "Children": "Isabel Maud de Stanley, Sir Thomas Stanley 1st Baron Stanley, Richard Stanley, Edward Stanley, Lady Alice Stanley, Isabel Margaret Stanley, Edward Archdeacon of Chester Stanley, William VII Stanley, John Stanley III, Elizabeth Stanley, James Stanley, Katherine Stanley",
+        "Bio": "Died at Thurland Castle, Lancashire"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -3.102264404296875,
+          54.13166773134297
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Sir John",
+        "LastName": "Stanley I",
+        "Relation": "21st Great Grandfather",
+        "Spouse": "Isabelle Lathom (1365 - 1414)",
+        "Born": 1386,
+        "Died": "6 January 1437",
+        "Children": "Ellen Stanley, Sir John Stanley II, King of Mann, Henry Stanley, Isabel Stanley, Thomas Stanley, George Stanley, Margaret Stanley, Ralph Stanley",
+        "Bio": "When John 1 Stanley was born in 1386, his father, William, was 100. He had one son with Isabel Lathom in 1386. He died in 1414 in Ardee, Louth, Ireland, at the age of 64."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.8133583068847656,
+          53.60615521721495
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Isabelle",
+        "LastName": "Lathom",
+        "Relation": "21st Great Grandmother",
+        "Spouse": "Sir John Stanley I (1386 - 1437)",
+        "Born": 1365,
+        "Died": "26 October 1414",
+        "Children": "Ellen Stanley, Sir John Stanley II, King of Mann, Henry Stanley, Isabel Stanley, Thomas Stanley, George Stanley, Margaret Stanley, Ralph Stanley",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.8446006774902344,
+          53.5736518469245
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Thomas",
+        "LastName": "Lathom",
+        "Relation": "22nd Great Grandfather",
+        "Spouse": "Joan de Venables (1332 - 1397)",
+        "Born": 1329,
+        "Died": "20 March 1381",
+        "Children": "Margaret Lathom, Thomas Lathom, Edward Lathom, Isabelle Lathom, Cecily Lathom, Edwart de Lathom, Katherine Lathom",
+        "Bio": "In the Domesday Book of 1086, Knowsley was known as \"Chenulveslei,\" becoming \"Knuvesle\" in 1199; \"Knouselegh\" in 1258; \"Knouleslee\" in 1261; \"Knusele\" in 1262; and \"Knouslegh\" in 1346. The pronunciation varies between \"Nowsley'\"and \"Nosely.\"  The village of Knowsley developed as a direct result of the Lathom/Stanley family better known as the Earls of Derby with their vast estate and residence at Knowsley Hall. The manors of Knowsley, Roby, Huyton and Tarbock were all held by the Lathom family before the year 1200."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.8322410583496094,
+          53.612469585184876
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Joan",
+        "LastName": "de Venables",
+        "Relation": "22nd Great Grandmother",
+        "Spouse": "Thomas Lathom (1329 - 1381)",
+        "Born": 1332,
+        "Died": "18 August 1397",
+        "Children": "Margaret Lathom, Thomas Lathom, Edward Lathom, Isabelle Lathom, Cecily Lathom, Edwart de Lathom, Katherine Lathom",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.46368408203125,
+          53.194104381703575
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Thomas",
+        "LastName": "Lathom",
+        "Relation": "23rd Great Grandfather",
+        "Spouse": "Eleanor de Ferrers (1305 - 1381)",
+        "Born": "23 February 1301",
+        "Died": "14 September 1381",
+        "Children": "Thomas Lathom, Edward de Lathom, Robert de Lathom",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.791213989257812,
+          53.60788667012782
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Eleanor",
+        "LastName": "de Ferrers",
+        "Relation": "23rd Great Grandmother",
+        "Spouse": "Thomas Lathom (1301 - 1381)",
+        "Born": 1305,
+        "Died": "17 September 1381",
+        "Children": "Thomas Lathom, Edward de Lathom, Robert de Lathom",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.097015380859375,
+          52.969319189066155
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "John",
+        "LastName": "de Ferrers",
+        "Relation": "24th Great Grandfather",
+        "Spouse": "Hawise de Muscegros (1276 - 1340)",
+        "Born": "20 June 1271",
+        "Died": "12 August 1312",
+        "Children": "John de Ferrers, Eleanor de Ferrers, Baron Robert de Ferrers",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -3.1688690185546875,
+          51.47496812303541
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Hawise",
+        "LastName": "de Muscegros",
+        "Relation": "24th Great Grandmother",
+        "Spouse": "John de Ferrers (1271 - 1312)",
+        "Born": "21 December 1276",
+        "Died": "1340/50",
+        "Children": "John de Ferrers, Eleanor de Ferrers, Baron Robert de Ferrers",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.4092674255371094,
+          51.07214476155937
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Robert",
+        "LastName": "de Muscegros (Knight)",
+        "Relation": "25th Great Grandfather",
+        "Spouse": "Unidentified c1276",
+        "Born": 1252,
+        "Died": "27 December 1280",
+        "Children": "Hawise de Muscegros",
+        "Bio": " Knt., of Charlton Musgrove, Norton, and Stowell, Somerset, Boddington and Kemerton, Gloucestershire, Great Finborough, Suffolk, etc., Constable of Bristol Castle, son and heir, born about 1252 (aged 23 in 1275). He fought in Wales in 1272 and 1277. He had livery of his father's lands 4 June 1275. He married (1st) before 1276 an unidentified wife, ___. They had one daughter, Hawise. In October 1275 Robert handed over his castle of Bunratty in Ireland to the king, on condition that as soon as the contention between the king and his subjects in Ireland is settled, and the said Robert has paid all expenses for its repair, munition, upkeep, and custody while in the king's hand, it shall be restored to him or his heirs."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.3994827270507812,
+          51.07926310202063
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Sir John",
+        "LastName": "de Muscergoes",
+        "Relation": "26th Great Grandfather",
+        "Spouse": "Lady Cecily Avenal (1235 - 1301)",
+        "Born": "17 August 1232",
+        "Died": "15 May 1275",
+        "Children": "Robert de Muscegros (Knight)",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.4350166320800777,
+          51.07354694552797
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Lady Cecily",
+        "LastName": "Avenal",
+        "Relation": "26th Great Grandmother",
+        "Spouse": "Sir John de Muscergoes",
+        "Born": "10 August 1235",
+        "Died": "10 August 1301",
+        "Children": "Robert de Muscegros (Knight)",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.6687068939208984,
+          51.29541737712993
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "William Robert",
+        "LastName": "Lord of Muscegros",
+        "Relation": "27th Great Grandfather",
+        "Spouse": "Hawise Malet (1202 - 1287)",
+        "Born": 1207,
+        "Died": "29 January 1253",
+        "Children": "Mabel Lady of Finborough Muscegros Lady, Sir John de Muscergoes, Mabel de Muscergoes",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.3675537109375,
+          51.07667474128143
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Hawise",
+        "LastName": "Malet",
+        "Relation": "27th Great Grandmother",
+        "Spouse": "William Robert Lord of Muscegros (1207 - 1253)",
+        "Born": "27 December 1202",
+        "Died": "4 May 1287",
+        "Children": "Mabel Lady of Finborough Muscegros Lady, Sir John de Muscergoes, Mabel de Muscergoes",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.959785461425781,
+          50.9929603866292
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "William B Cory",
+        "LastName": "Malet",
+        "Relation": "28th Great Grandfather",
+        "Spouse": "Alice Baroness Cory Bassett (1184 - Deceased)",
+        "Born": 1176,
+        "Died": 1217,
+        "Children": "Hawise Malet",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.9507732391357417,
+          50.993068432898326
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Alice Baroness",
+        "LastName": "Cory Bassett",
+        "Relation": "28th Great Grandmother",
+        "Spouse": "William B Cory Malet",
+        "Born": 1184,
+        "Died": "Deceased",
+        "Children": "Hawise Malet",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.3598155975341797,
+          52.12468878904773
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Baron Gilbert",
+        "LastName": "Malet The Seneschal",
+        "Relation": "29th Great Grandfather",
+        "Spouse": "Lady Alice Picot (1155 - 1220)",
+        "Born": 1140,
+        "Died": 1190,
+        "Children": "William B Cory Malet, Ralph Malet, William Malet II Baron of Curry Malet, Robert Malet, Gilbert Mallet",
+        "Bio": "Gilbert Malet succeeded William Malet, of whom the last recorded date is 1168. Gilbert's first recorded date is 1174, when, with the designation of Seneschal, he was one the witnesses to the treaty of Henry II with William King of the Scots."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.96630859375,
+          50.992636246312536
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Lady Alice",
+        "LastName": "PIcot",
+        "Relation": "29th Great Grandmother",
+        "Spouse": "Baron GIlbert Malet The Seneschal",
+        "Born": 1155,
+        "Died": 1220,
+        "Children": "William B Cory Malet, Ralph Malet, William Malet II Baron of Curry Malet, Robert Malet, Gilbert Mallet",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.38555145263671875,
+          51.44015225445916
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "William",
+        "LastName": "Mallet",
+        "Relation": "30th Great Grandfather",
+        "Spouse": "Maud de Mortimer (1125 - 1213)",
+        "Born": 1110,
+        "Died": 1169,
+        "Children": "Baron GIlbert Malet the Seneschal, Baron of Curry and Mallet, Maud Mallet",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.966737747192383,
+          50.98512636188829
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Maud",
+        "LastName": "de Mortimer",
+        "Relation": "30th Great Grandmother",
+        "Spouse": "William Mallet (1110 - 1169)",
+        "Born": 1125,
+        "Died": 1213,
+        "Children": "Baron GIlbert Malet the Seneschal, Baron of Curry and Mallet, Maud Mallet",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.8559303283691406,
+          52.31488044461311
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Baron Robert",
+        "LastName": "Malet",
+        "Relation": "31st Great Grandfather",
+        "Spouse": "Hesilia Crispin (1080-1125)",
+        "Born": 1090,
+        "Died": 1156,
+        "Children": "William Malet",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.979612350463867,
+          50.98566668190682
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Hesilia",
+        "LastName": "Crispin",
+        "Relation": "31st Great Grandmother",
+        "Spouse": "Baron Robert Malet (1090 - 1156)",
+        "Born": 1080,
+        "Died": 1125,
+        "Children": "William Malet",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.9886245727539062,
+          50.98647715014271
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Gilbert",
+        "LastName": "Crispin I",
+        "Relation": "32nd Great Grandfather",
+        "Spouse": "Eve De Montfort (1060 - 1099)",
+        "Born": 1055,
+        "Died": 1117,
+        "Children": "Hesilia Crispin, Gilbert Crispin II",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.263671875,
+          49.61782831211117
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Eve",
+        "LastName": "De Montfort",
+        "Relation": "32nd Great Grandmother",
+        "Spouse": "Gilbert Crispin I (1055 - 1117)",
+        "Born": 1060,
+        "Died": "23 January 1099",
+        "Children": "Hesilia Crispin, Gilbert Crispin II",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.40374755859374994,
+          49.637398480161224
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Simon",
+        "LastName": "De Montfort I",
+        "Relation": "33rd Great Grandfather",
+        "Spouse": "Countess Isabell de Broyes de Greystoke (1025 - 1058)",
+        "Born": 1025,
+        "Died": "25 September 1087",
+        "Children": "Isabel or Elizabeth de Montfort",
+        "Bio": "Simon de Montfort, son and heir. He is styled son of Amauri by Orderic. "
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1.8051910400390623,
+          48.780627593814906
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Countess Isabell",
+        "LastName": "de Broyes de Greystoke",
+        "Relation": "33rd Great Grandmother",
+        "Spouse": "Simon de Montfort I (1025 - 1087)",
+        "Born": 1025,
+        "Died": 1058,
+        "Children": "Isabel or Elizabeth de Montfort"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.7050991058349609,
+          53.922790624810624
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Amaury",
+        "LastName": "de Montfort I",
+        "Relation": "34th Great Grandfather",
+        "Spouse": "Bertrade de Gometz (1001 - 1051)",
+        "Born": 993,
+        "Died": 1053,
+        "Children": "Hugues II de Montfort, Eve Montfort, Simon de Montfort I, Mainer de Montfort, Jean I Aumary",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1.1379432678222656,
+          49.02087235631781
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Bertrade",
+        "LastName": "de Gometz",
+        "Relation": "34th Great Grandmother",
+        "Spouse": "Amaury de Montfort I (993 - 1053)",
+        "Born": 1001,
+        "Died": 1051,
+        "Children": "Hugues II de Montfort, Eve Montfort, Simon de Montfort I, Mainer de Montfort, Jean I Aumary",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.603759765625,
+          48.743512093586844
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Guillaume",
+        "LastName": "de Cambrai",
+        "Relation": "35th Great Grandfather",
+        "Spouse": "Alberede d'Albon (985 - 1040)",
+        "Born": 975,
+        "Died": 1040,
+        "Children": "Geoffrey Gometz Chevalier, Bertrade de Gometz, Hodierna of Gometz, Guillaume II Gometz, Ours (Ursus) de Gometz",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1.889991760253906,
+          48.7794964290288
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Alberede",
+        "LastName": "d'Albon",
+        "Relation": "35th Great Grandmother",
+        "Spouse": "Guillaume de Cambrai (975 - 1040)",
+        "Born": 985,
+        "Died": 1040,
+        "Children": "Geoffrey Gometz Chevalier, Bertrade de Gometz, Hodierna of Gometz, Guillaume II Gometz, Ours (Ursus) de Gometz",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1.1260986328125,
+          49.78835749241399
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Raoul",
+        "LastName": "De Cambrai",
+        "Relation": "36th Great Grandfather",
+        "Spouse": "Alaides D'Amiens (950 - 1000)",
+        "Born": 925,
+        "Died": 982,
+        "Children": "Guillaume De Cambrai",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.242340087890625,
+          50.177337861096774
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Alaides",
+        "LastName": "D'Aimiens",
+        "Relation": "36th Great Grandmother",
+        "Spouse": "Raoul De Cambrai (925 - 982)",
+        "Born": 950,
+        "Died": 1000,
+        "Children": "Guillaume De Cambrai",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          5.09765625,
+          49.33228198473771
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Baldwin",
+        "LastName": "De Cambrai",
+        "Relation": "37th Great Grandfather",
+        "Spouse": "Unidentified (c900-Deceased)",
+        "Born": 893,
+        "Died": 976,
+        "Children": "Raoul De Cambrai Vidame Rheims",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.260364532470703,
+          50.194374633997754
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Rudolf",
+        "LastName": "de Cambrai de Flandres Baudouinides",
+        "Relation": "38th Great Grandfather",
+        "Spouse": "Aleidis d'Aimiens (870 - 909)",
+        "Born": 865,
+        "Died": "17 June 896",
+        "Children": "Isaac Remi de Cambrai Comte de Cambrai, Tochter von Flandern, Raoul d'Amiens, Isaac de Valenciennes, Baldwin de Cambrai, Aleidis-Hildegarde de Cambrai Baudounides, Bertha Baudouinides, Mathilde D'amiens de Cambrai-D'Amiens",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.0814208984375,
+          49.816720843571765
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Aleidis",
+        "LastName": "d'Amiens",
+        "Relation": "38th Great Grandmother",
+        "Spouse": "Rudolf de Cambrai de Flandres Baudouinides (865 - 896)",
+        "Born": 870,
+        "Died": 909,
+        "Children": "Isaac Remi de Cambrai Comte de Cambrai, Tochter von Flandern, Raoul d'Amiens, Isaac de Valenciennes, Baldwin de Cambrai, Aleidis-Hildegarde de Cambrai Baudounides, Bertha Baudouinides, Mathilde D'amiens de Cambrai-D'Amiens",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.2944259643554683,
+          49.88534449228092
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Baudouin I",
+        "LastName": "Baudouinides",
+        "Relation": "39th Great Grandfather",
+        "Spouse": "Judith of Flanders (843 - 870)",
+        "Born": 833,
+        "Died": 879,
+        "Children": "Charles van Vlaanderen Baudouinides, Baudouin II Le Chauve Baudouinides, Rudolf de Cambrai de Flandres Baudouinides, Widimille Baudouinides, Maude Baudouinides",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.548828125,
+          50.919484778553056
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Judith",
+        "LastName": "of Flanders",
+        "Relation": "39th Great Grandmother",
+        "Spouse": "Baudouin I Baudouinides (833 - 879)",
+        "Born": 843,
+        "Died": 870,
+        "Children": "Charles van Vlaanderen Baudouinides, Baudouin II Le Chauve Baudouinides, Rudolf de Cambrai de Flandres Baudouinides, Widimille Baudouinides, Maude Baudouinides",
+        "Bio": "Judith of Flanders (or Judith of France) was the oldest child of Charles the Bald, King of the West Franks and Holy Roman Emperor, and his first wife Ermentrude of Orléans. She was born about 843, most likely in Orléans. On 1 October 856, at Verberie in northern France, Judith married Æthelwulf, King of Wessex. Æthelwulf was about sixty-one years old and Judith was age 12 to 14. The marriage was a diplomatic alliance and as part of the arrangement Charles insisted his daughter be crowned Queen. Judith was crowned queen and anointed by Hincmar, Archbishop of Rheims. Although empresses had been anointed before, this is the first definitely known anointing of a Carolingian queen. The marriage itself was unusual in that Carolingian princesses rarely married, were usually sent to nunneries, and it was almost unknown for them to marry foreigners. The marriage provoked a rebellion by Æthelwulf's eldest surviving son, Æthelbald, probably because he feared displacement by a higher-born half-brother. Æthelwulf, died on 13 January 858, married a little over a year, Judith was still no more than 14 or 15, the marriage produced no children. Æthelbald, succeed his father as King of Wessex and immediately married Judith, his step-mother, probably to enhance his status because she was the daughter of the West Frankish king. Æthelbald died in July 860, they had been married two-and-a-half years. Judith was no more than 17 years old, she had been twice married, twice widowed, twice been the Queen of Wessex ad she was still childless. Done with Wessex, Judith sold her properties and went home to France. Her father Charles the Bald promptly put her in the Monastery at Senlis, \"under his protection, with all the honour due to a queen, until such time as she might marry suitably and legally.\" Around Christmas 861, Judith escaped and eloped with Baldwin (Count of Flanders) to the Flemish city of Harelbeke. Judith's brother Louis had given his consent but her father Charles the Bald was furious and tried to have the couple excommunicated. Thy fled to Rome and appealed to the Pope. Pope Nicholas I convinced Judith's father to accept the union and welcome the young couple into his circle. They were officially married at Auxerre on 13 December 862.  Baldwin was given the County of Flanders to protect from Viking attacks. He not only succeeded in quelling the threat, but expanded both his army and his territory quickly, and became a faithful supporter of King Charles. Baldwin became known as \"Iron Arm\" and the March of Baldwin came to be known as the County of Flanders and would become one of the most powerful principalities of France.  Judith finally had children. She and Baldwin are known to have had: Charles (c. 864/865 – died young), named after Judith's father, Charles the Bald  Baldwin II (c. 865/867 – c. 10 September 918). Succeeded his father as Margrave (Count) of Flanders. Married Ælfthryth, daughter of Alfred the Great  Raoul or Ralph (Rodulf) (c. 867/870 – murdered 17 June 896). Became Count of Cambrai around 888; he and his brother joined King Zwentibold of Lotharingia in 895, attacked Vermandois and captured Arras, Saint-Quentin and Peronne, and ended up captured and killed by Herbert I of Vermandois  Guinidilda, who married Wilfred I the Hairy, Count of Barcelona  Judith's exact date of death is not known, however, it is believed about 870, certainly before Baldwin who died in 879, they are both believed to be buried in the Abbey of St-Bertin, near Saint-Omer."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1.8996047973632812,
+          47.9002325297653
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "King Charles II",
+        "LastName": "Roman Emperor",
+        "Relation": "40th Great Grandfather",
+        "Spouse": "Ermentrude of Orleans (830 - 869)",
+        "Born": "13 June 823",
+        "Died": "6 October 877",
+        "Children": "Judith of Flanders, King Louis II, Charles the Child, Lothair the Lame, Carloman Prince of Franks, Rotrude Abbess of Saint-Radegunde, Hildegarde Princess of the West Franks, Gisele Princess of France, Godehilde de France",
+        "Bio": "Charles ΙΙ, also known as Charles the Bald was the youngest son of Louis the Pious and his second wife Judith. He was also a grandson of Charlemagne. Charles was born June 13, 823 in Frankfurt am Main, and was named Charles after his famous and powerful grandfather. His older brothers are Lothair I, Pepin of Aquitaine, and Louis the German. Charles married Ermentrude of Orléans, daughter of Odo I, Count of Orléansin, in 842 and they had 10 children: Judith of Flanders, Louis the Stammerer, Charles the Child, Lothar, Germain, Carloman, Rotrud and Ermentrud (both who became nuns), Hildegard, Gisela, and Godehilde. Ermentrude died October 6 869 and in 870 Charles married Richilde of the Ardennes, daughter of Bivin of Gorze, Count of the Ardennes. Together they had5 more children: Rothilde, Drogo, Pippin, a son who died an infant in 875, and Charles.  Charles the Bald was not bald, he is pictured with a full head of hair. 'The Bald' rather refers to his lack of lands when he was young. Charles would spend most of his life in a power struggle with his older brothers over the lands conquered by their grandfather. Charles older brother Pepin died in 838 and Charles was made King of Aquitaine. His father Louis the Pious died in 840 and war erupted between his sons. Oldest son Lothair consolidated control of Middle Francia and became Emperor of Rome. Charles allied with his brother Louis against their older brother. Louis became King of East Francia (King of Germany) and Charles King of West Francia (King of France) After the death of his brother Lothair and then his brothers son Emperor Louis II, Charles traveled to Rome and was crowned Holy Roman Emperor by Pope John VIII on December 25, 875.  Charles died on 6 October 877 in Brides-les-Bains while crossing the pass of Mont Cenis. He was buried initially at the abbey of Nantua, Burgundy but a few years later, his remains were transferred to the Abbey of Saint-Denis where he had long wished to be buried."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          8.67645263671875,
+          50.1270714820049
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Ermentrude",
+        "LastName": "of Orleans",
+        "Relation": "40th Great Grandmother",
+        "Spouse": "King Charles II Roman Emperor (823 - 877)",
+        "Born": "27 September 830",
+        "Died": "6 October 869",
+        "Children": "Judith of Flanders, King Louis II, Charles the Child, Lothair the Lame, Carloman Prince of Franks, Rotrude Abbess of Saint-Radegunde, Hildegarde Princess of the West Franks, Gisele Princess of France, Godehilde de France",
+        "Bio": "Ermentrude of Orléans (27 September 823 – 6 October 869) was Queen of the Franks by her marriage to Charles the Bald, Holy Roman Emperor and King of West Francia. She was the daughter of Odo, Count of Orléans and his wife Engeltrude. The epithet 'of Orléans' is not contemporary.  The couple had at least nine children, including the future Louis II 'the Stammerer'. She reportedly was well known for her embroidery and had an interest in religious foundations."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1.8903350830078125,
+          47.89056441663247
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Louis",
+        "LastName": "le Pieux",
+        "Relation": "41st Great Grandfather",
+        "Spouse": "Judith of Bavaria (797 - 843)",
+        "Born": "16 April 778",
+        "Died": "20 June 840",
+        "Children": "Gisela, King Charles II Roman Emperor",
+        "Bio": "Louis the Pious, also called Louis the Fair, Ludwig der Fromme, and Louis I Holy Roman Emperor. Louis reigned as Emperor of the Romans (Holy Roman Emperor) for 26 years. His reign was the longest of any medieval Holy Roman Emperor until Henry IV. Louis succeeded in holding the Carolingian Empire together during his rule. Nevertheless, the empire was divided between his sons after his death, which led to the birth of France and Germany."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.6193542480468749,
+          44.44468813918427
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Judith",
+        "LastName": "of Bavaria",
+        "Relation": "41st Great Grandmother",
+        "Spouse": "Louis le Pieux (778 - 840)",
+        "Born": "19 February 797",
+        "Died": "19 April 843",
+        "Children": "Gisela, King Charles II Roman Emperor",
+        "Bio": "Queen Judith, also known as Judith of Bavaria, was the daughter of Count Welf of Bavaria and Saxon noblewoman, Hedwig."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          8.642635345458984,
+          46.882312355826635
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "King",
+        "LastName": "Charlemagne",
+        "Relation": "42nd Great Grandfather",
+        "Spouse": "Hildegard von Vinzgau (757 - 783)",
+        "Born": "2 April 742",
+        "Died": "28 January 814",
+        "Children": "Charles Carolingiens, Pepin I (King of Italy), Adelaide Carolingiens, Rotrude Carolingiens, Lothair, Louis le Pieux, Bertha Carolingian, Princess Gisele of Roman Empire, Hildegarde",
+        "Bio": "As emperor, Charlemagne proved to be a talented diplomat and able administrator of the vast area he controlled. He promoted education and encouraged the Carolingian Renaissance, a period of renewed emphasis on scholarship and culture. He instituted economic and religious reforms, and was a driving force behind the Carolingian miniscule, a standardized form of writing that later became a basis for modern European printed alphabets. Charlemagne ruled from a number of cities and palaces, but spent significant time in Aachen. His palace there included a school, for which he recruited the best teachers in the land."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          8.048858642578125,
+          49.97683835509416
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Hildegard",
+        "LastName": "von Vinzgau",
+        "Relation": "42nd Great Grandmother",
+        "Spouse": "King Charlemagne (742 - 814)",
+        "Born": "2 April 757",
+        "Died": "30 April 783",
+        "Children": "Charles Carolingiens, Pepin I (King of Italy), Adelaide Carolingiens, Rotrude Carolingiens, Lothair, Louis le Pieux, Bertha Carolingian, Princess Gisele of Roman Empire, Hildegarde",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.092262268066406,
+          50.79443430009757
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Pepin III",
+        "LastName": "the Short of the Franks",
+        "Relation": "43rd Great Grandfather",
+        "Spouse": "Bertrada II de Laon (720 - 783)",
+        "Born": "2 April 714",
+        "Died": "24 September 768",
+        "Children": "Aleida de Francie, Charlemagne, Girard Comte de Paris, Gisela Abbess of Chelle, Hermengarde de France, Carloman II Roi d'Austrasie Carolingiens, Carloman I King of the Franks, etc",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          5.6380462646484375,
+          50.67274736047949
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Bertrada II",
+        "LastName": "de Laon",
+        "Relation": "43rd Great Grandmother",
+        "Spouse": "Pepin III the Short of the Franks (714 - 768)",
+        "Born": "01 April 720",
+        "Died": "12 July 783",
+        "Children": "Aleida de Francie, Charlemagne, Girard Comte de Paris, Gisela Abbess of Chelle, Hermengarde de France, Carloman II Roi d'Austrasie Carolingiens, Carloman I King of the Franks, etc",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.628063201904297,
+          49.56385846776098
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Charles (Karl)",
+        "LastName": "the Hammer",
+        "Relation": "44th Great Grandfather",
+        "Spouse": "Rotrude de Hesbaye et Treves (688 - 724)",
+        "Born": "23 August 676",
+        "Died": "20 October 741",
+        "Children": "Carloman Mayor of Palace of Austrasia Landen, Pepin III the Short of the Franks, Hiltrud Carolingiens, Auda de France, Landrade of Austrasia",
+        "Bio": "Charles, more commonly known as Charles Martel, was a formidable warrior and statesmen who thoroughly deserved his nickname of “the hammer.” Charles was the son of Frankish statesman Pepin of Herstal and his 2nd wife noblewoman Alpaida, he was born about 688. He had a brother named Childebrand, who later became the Frankish dux (Duke) of Burgundy. In older historiography, it was common to describe Charles as \"illegitimate\". But the dividing line between wives and concubines was not clear-cut in eighth-century Francia, and it is likely that the accusation of \"illegitimacy\" derives from the desire of Pepin's first wife Plectrude to see her progeny as heirs to Pepin's power."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.037132263183594,
+          49.26108329959865
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Rotrude",
+        "LastName": "de Hesbaye et Treves",
+        "Relation": "44th Great Grandmother",
+        "Spouse": "Karl The Hammer (676 - 741)",
+        "Born": "23 August 688",
+        "Died": "22 October 724",
+        "Children": "Carloman Mayor of Palace of Austrasia Landen, Pepin III the Short of the Franks, Hiltrud Carolingiens, Auda de France, Landrade of Austrasia",
+        "Bio": "Rotrude (Chrodtrudis) (or Crotude, Chrotrude, or Ruadtrud; died 724) was the first wife of Charles Martel, Mayor of the Palace and de facto ruler of Francia from 718 to 741."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.640892028808594,
+          49.76330416062798
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Pepin II the Fat",
+        "LastName": "of Heristal",
+        "Relation": "45th Great Grandfather",
+        "Spouse": "Chalpaida of Austrasia (635 - 705)",
+        "Born": 635,
+        "Died": "16 December 714",
+        "Children": "Charles Martel (Charles The Hammer), Childebrand I",
+        "Bio": "Carolingian mayor of the palace, who reunited the Frankish realms in the late Merovingian period. A grandson of Pepin the Elder, he succeeded to his position in the kingdom of Austrasia around 680. In 687 he extended Carolingian rule to the other Frankish kingdoms, Neustria and Burgundy, but retained members of the Merovingian dynasty as figurehead monarchs in all three. Two years later he extended his control over the Frisians, a pagan people living on the North Sea coast. Pepin's death was followed by a civil war and the succession of his illegitimate son Charles Martel."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          5.649890899658203,
+          50.66034363875144
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Chalpaida",
+        "LastName": "of Austrasia",
+        "Relation": "45th Great Grandmother",
+        "Spouse": "Pepin II the Fat of Heristal (635 - 714)",
+        "Born": 635,
+        "Died": "16 December 705",
+        "Children": "Charles Martel (Charles The Hammer), Childebrand I",
+        "Bio": "Alpaida (also Alpaïde, Alpaide, Alphaida, Alpoïde, Elphide, Elfide, Chalpaida; ca. 654 – ca. 714) was a Frankish noblewoman who hailed from the Liège area. She became the mistress of Pippin of Herstal (635 or 640 – 16 December 714) and mother to two sons by him, Charles Martel (Charles the Hammer) (d. 22 October 741) and Childebrand I (678–751)."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          5.603542327880859,
+          50.66904834778399
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Ansegiselus",
+        "LastName": "von Franken",
+        "Relation": "46th Great Grandfather",
+        "Spouse": "Begga (530 - Deceased)",
+        "Born": 610,
+        "Died": 662,
+        "Children": "Pepin II the Fat of Heristal",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          5.705680847167968,
+          50.64216735805654
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Begga",
+        "LastName": "of Landen",
+        "Relation": "46th Great Grandmother",
+        "Spouse": "Anselgiesel von Franken (610 - 662)",
+        "Born": 530,
+        "Died": "Deceased",
+        "Children": "Pepin II the Fat of Heristal",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.186504364013672,
+          49.12388223088667
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Pepin I",
+        "LastName": "of Landen",
+        "Relation": "47th Great Grandfather",
+        "Spouse": "Itta of Metz (592 - 652)",
+        "Born": 580,
+        "Died": "27 February 640",
+        "Children": "Begga, Grimoalde, Bavo, Gertrude",
+        "Bio": "Pepin was praised by his contemporaries for his good government and wise counsel. Though some enemies tried to turn the king against him, their plots were foiled and Pepin remained on good terms with the king until 629, when, for reasons unknown, he retired (or was retired) to his estates, where he remained for the next decade, until Dagobert's death. He is sometimes called Pepin I and his other nicknames (Elder and Old) come from his position at the head of the family called the Pippinids after him."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          5.540199279785156,
+          50.63160664876761
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Itta",
+        "LastName": "of Metz",
+        "Relation": "47th Great Grandmother",
+        "Spouse": "Pepin I of Landen (580 - 640)",
+        "Born": 592,
+        "Died": "8 May 652",
+        "Children": "Begga, Grimoalde, Bavo, Gertrude",
+        "Bio": "Itta is honored as the patron saint of the French village of Itteville, which was founded on the site of a farm which she had established."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          5.575561523437499,
+          50.63879254400661
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Arnoldus",
+        "LastName": "Bishop of Metz",
+        "Relation": "48th Great Grandfather",
+        "Spouse": "Oda of Saxony (556 - 611)",
+        "Born": 540,
+        "Died": 611,
+        "Children": "Saint Arnulf II De Heristal Bishop of Metz Patron of Brewers, Arnaulf Merovingian, Saint Modoaldus Archbishop of Saxony, Clothilde, Itta de Nivelles, Severa",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.17156982421875,
+          49.11489424716147
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Oda",
+        "LastName": "of Saxony",
+        "Relation": "48th Great Grandmother",
+        "Spouse": "Arnoldus Bishop of Metz (540 - 611)",
+        "Born": 556,
+        "Died": 611,
+        "Children": "Saint Arnulf II De Heristal Bishop of Metz Patron of Brewers, Arnaulf Merovingian, Saint Modoaldus Archbishop of Saxony, Clothilde, Itta de Nivelles, Severa",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.866154670715332,
+          50.89783627109672
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Senator Ausbertus Markgrave",
+        "LastName": "Schelde Meroving",
+        "Relation": "49th Great Grandfather",
+        "Spouse": "Bithilde Blithildis Berthe Aldeberge Meroving deSoissons deCologne (540 - 603)",
+        "Born": 526,
+        "Died": "11 October 570",
+        "Children": "Arnoldus Bishop of Metz",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.4324951171875,
+          49.034266715880825
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Bithilde Blithildis Berthe Aldeberge",
+        "LastName": "Meroving deSoissons deCologne",
+        "Relation": "49th Great Grandmother",
+        "Spouse": "Senator Ausbertus Markgrave Schelde Meroving (526 - 570)",
+        "Born": 540,
+        "Died": 603,
+        "Children": "Arnoldus Bishop of Metz",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.362060546875,
+          48.85861640881589
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Duke Tonatius II",
+        "LastName": "Ferrolus Auvergne",
+        "Relation": "50th Great Grandfather",
+        "Spouse": "Unknown",
+        "Born": 462,
+        "Died": 525,
+        "Children": "Senator Ausbertus Markgrave Schelde Meroving",
+        "Bio": "Known as \"Tonnance\" to friends."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.45721435546875,
+          49.19965350270188
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Tonantius Ferreolus",
+        "LastName": "Consul of Rome",
+        "Relation": "51st Great Grandfather",
+        "Spouse": "Papianilla Clarissima Femina Roma (415 - 463)",
+        "Born": 432,
+        "Died": 475,
+        "Children": "Tonantius II Vis Clarismus Ferreolus",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.490081787109375,
+          41.88898809959183
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Papianilla Clarissima",
+        "LastName": "Femina Roma",
+        "Relation": "51st Great Grandmother",
+        "Spouse": "Tonantius Ferreolus Consul of Rome (432 - 475)",
+        "Born": 415,
+        "Died": 463,
+        "Children": "Tonantius II Vis Clarismus Ferreolus",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1.0510826110839844,
+          48.84664340683584
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Tonantius Senator",
+        "LastName": "Ferreolus",
+        "Relation": "52nd Great Grandfather",
+        "Spouse": "Unknown",
+        "Born": 403,
+        "Died": 453,
+        "Children": "Tonantius Ferreolus \"The First\"",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.440643310546875,
+          41.9155632172071
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Ferreolus",
+        "LastName": "Syagrius",
+        "Relation": "53rd Great Grandfather",
+        "Spouse": "Unknown",
+        "Born": 350,
+        "Died": 380,
+        "Children": "Tonantius Senator Ferreolus",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.849262237548828,
+          45.74656346539698
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Aegedius Afranius",
+        "LastName": "de Syagrius",
+        "Relation": "54th Great Grandfather",
+        "Spouse": "Syagria Syagrii (320 - Deceased)",
+        "Born": 320,
+        "Died": "Deceased",
+        "Children": "Ferreolus Syagrius, Aelia Flacilia Favius, Papianilla Favia Syagrius, ",
+        "Bio": "Roman General"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.847373962402344,
+          45.757343618424514
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Syagrius Hannibalius",
+        "LastName": "Afranius Afranii",
+        "Relation": "55th Great Grandfather",
+        "Spouse": "Unknown",
+        "Born": 280,
+        "Died": "Deceased",
+        "Children": "Aegidius Hannibalianus Afranii, Aegedius Afranius de Syagrius",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          13.5791015625,
+          46.58906908309182
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Flavius Afranius",
+        "LastName": "Hannibalianus",
+        "Relation": "56th Great Grandfather",
+        "Spouse": "Eutopia Galeria Valeria Eutropia Junii de Syrie (250 - 325)",
+        "Born": 245,
+        "Died": 292,
+        "Children": "Flavius Afranius Hannibalianus, Eutropia Crispina Crispis",
+        "Bio": "He was elevated to the rank of Praetorian prefect of the west in AD 286 under Maximian, and had led the imperial armies to victory over the Germanic tribes along the Rhine in that year."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          16.5673828125,
+          41.11246878918088
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Eutopia Galeria Valeria",
+        "LastName": "Eutropia Junii de Syrie",
+        "Relation": "56th Great Grandmother",
+        "Spouse": "Flavius Afranius Hannibalianus (245 - 292)",
+        "Born": 250,
+        "Died": 325,
+        "Children": "Flavius Afranius Hannibalianus, Eutropia Crispina Crispis",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          37.06787109375,
+          35.737595151747826
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Consul Hannibalianus Afrianius",
+        "LastName": "Afrianii",
+        "Relation": "57th Great Grandfather",
+        "Spouse": "Flavia Major of Thera (200 - Deceased)",
+        "Born": 215,
+        "Died": "Deceased",
+        "Children": "Flavius Afranius Hannibalianus",
+        "Bio": "Consul of Rome"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          14.1064453125,
+          42.049292638686836
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Flavia",
+        "LastName": "Major of Thera",
+        "Relation": "57th Great Grandmother",
+        "Spouse": "Consul Hannibalianus Afrianius Afrianii (215 - Deceased)",
+        "Born": 200,
+        "Died": "Deceased",
+        "Children": "Flavius Afranius Hannibalianus",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.65625,
+          41.77438424721882
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Titus Flavius",
+        "LastName": "Stasicles Metrophanes de Thera",
+        "Relation": "58th Great Grandfather",
+        "Spouse": "Claudia Capitolina (195 - Deceased)",
+        "Born": 160,
+        "Died": 220,
+        "Children": "Consul Hannibalianus Afrianius Afranii"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          11.84326171875,
+          42.21224516288584
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Klaudia",
+        "LastName": "Kapitolina",
+        "Relation": "58th Great Grandmother",
+        "Spouse": "Titus Flavius Stasicles Metrophanes de Thera (160 - 220)",
+        "Born": 195,
+        "Died": "Deceased",
+        "Children": "Consul Hannibalianus Afrianius Afranii",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          25.432662963867184,
+          36.42183496700228
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "TIberius Claudius",
+        "LastName": "Frontonianus",
+        "Relation": "59th Great Grandfather",
+        "Spouse": "Thermistoclea of Melite (130 - Deceased)",
+        "Born": 130,
+        "Died": 165,
+        "Children": "Tiberius Claudius Thermistocles Marathonius",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.58209228515625,
+          41.90329915269289
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Thermistoclea",
+        "LastName": "of Melite",
+        "Relation": "59th Great Grandmother",
+        "Spouse": "Tiberius Claudius Frontonianus (130 - 165)",
+        "Born": 130,
+        "Died": "Deceased",
+        "Children": "Tiberius Claudius Thermistocles Marathonius"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          14.468994140624998,
+          35.902399875143615
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Tiberios Klaudios Sospis",
+        "LastName": "Meliteus Dadouchos",
+        "Relation": "60th Great Grandfather",
+        "Spouse": "Claudia Philippe II Meliteus (110 - 150)",
+        "Born": 95,
+        "Died": "Deceased",
+        "Children": "Thermistoclea of Melite",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.59912109375,
+          37.97884504049713
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Claudia Philippe II",
+        "LastName": "Meliteus",
+        "Relation": "60th Great Grandmother",
+        "Spouse": "Tiberios Klaudios Sospis Meliteus Dadouchos (95 - Deceased)",
+        "Born": 110,
+        "Died": 150,
+        "Children": "Thermistoclea of Melite",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          14.5404052734375,
+          35.83896829930447
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Tiberios Klaudios",
+        "LastName": "Lysiades Meliteus Archon of Athens",
+        "Relation": "61st Great Grandfather",
+        "Spouse": "Antonia de Corinthe",
+        "Born": 65,
+        "Died": 130,
+        "Children": "TIberios Klaudios Sospis Meliteus Dadouchos",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          23.738536834716797,
+          37.98222771312011
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Antonia",
+        "LastName": "de Corinthe",
+        "Relation": "61st Great Grandmother",
+        "Spouse": "Tiberios Klaudios Lysiades Meliteus Archon of Athens (65 - 130)",
+        "Born": 80,
+        "Died": "Deceased",
+        "Children": "TIberios Klaudios Sospis Meliteus Dadouchos",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.92812347412109,
+          37.938782346134424
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Leonides VII",
+        "LastName": "Meliteus Dadoukos",
+        "Relation": "62nd Great Grandfather",
+        "Spouse": "N, N. Hagnousios Daughter of Themistokles IV",
+        "Born": 35,
+        "Died": 100,
+        "Children": "Tiberios Klaudios Lysiades Meliteus Archon of Athens",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.37939453125,
+          39.21523130910491
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "N N Hagnousios",
+        "LastName": "Daughter of Themistokles IV",
+        "Relation": "62nd Great Grandmother",
+        "Spouse": "Leonides VII Meliteus Dadoukos (35 - 100)",
+        "Born": 40,
+        "Died": "Deceased",
+        "Children": "Tiberios Klaudios Lysiades Meliteus Archon of Athens",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.17041015625,
+          39.2492708462234
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "TIberios Klaudios",
+        "LastName": "Lysiades IV Meliteos",
+        "Relation": "63rd Great Grandfather",
+        "Spouse": "Cepisdora Hagnousios",
+        "Born": 7,
+        "Died": 37,
+        "Children": "Tiberios VII Klaudios Leonides Meliteus Dadoukos",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.40438461303711,
+          37.087227239362655
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Cepisdora",
+        "LastName": "Hagnousios",
+        "Relation": "63rd Great Grandmother",
+        "Spouse": "TIberios Klaudios Lysiades IV Meliteos",
+        "Born": "Unknown",
+        "Died": "Deceased",
+        "Children": "Tiberios VII Klaudios Leonides Meliteus Dadoukos",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.444553375244137,
+          37.06654686622663
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Leonides V",
+        "LastName": "Meliteos",
+        "Relation": "64th Great Grandfather",
+        "Spouse": "Unknown",
+        "Born": "45BC",
+        "Died": "Deceased",
+        "Children": "Tiberios Klaudios Lysiades IV Meliteos",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.426013946533203,
+          37.03215840295834
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Leonides IV",
+        "LastName": "Meliteus",
+        "Relation": "65th Great Grandfather",
+        "Spouse": "Chrisrosthemis Phaidrou Berenikidou (80BC - Deceased)",
+        "Born": "80BC",
+        "Died": "Deceased",
+        "Children": "Leonides V Meliteos",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.432537078857422,
+          37.095853806810894
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Chrisrosthemis Phaidrou",
+        "LastName": "Berenikidou",
+        "Relation": "65th Great Grandmother",
+        "Spouse": "Leonides IV Meliteus (80BC - Deceased)",
+        "Born": "80BC",
+        "Died": "Deceased",
+        "Children": "Leonides V Meliteos",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.470130920410156,
+          37.03613236808881
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Leonides III",
+        "LastName": "Meliteus",
+        "Relation": "66th Great Grandfather",
+        "Spouse": "Timothea (95BC - Deceased)",
+        "Born": "120BC",
+        "Died": "Deceased",
+        "Children": "Leonides IV Meliteus",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          22.465496063232422,
+          37.07640840994851
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Timothea",
+        "LastName": "Melitene",
+        "Relation": "66th Great Grandmother",
+        "Spouse": "Leonides III Meliteus (120BC - Deceased)",
+        "Born": "95BC",
+        "Died": "Deceased",
+        "Children": "Leonides IV Meliteus",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          14.357757568359373,
+          35.94910642813857
+        ]
+      }
+    }
+  ]
+};
+      
+      /**
+       * Assign a unique id to each store. You'll use this `id`
+       * later to associate each point on the map with a listing
+       * in the sidebar.
+      */
+      ancestors.features.forEach(function(store, i){
+        store.properties.id = i;
+      });
+
+      /**
+       * Wait until the map loads to make changes to the map.
+      */
+      map.on('load', function (e) {
+        /** 
+         * This is where your '.addLayer()' used to be, instead
+         * add only the source without styling a layer
+        */
+        map.addSource("places", {
+          "type": "geojson",
+          "data": ancestors
+        });
+
+        /**
+         * Add all the things to the page:
+         * - The location listings on the side of the page
+         * - The markers onto the map
+        */
+        buildLocationList(ancestors);
+        addMarkers();
+      });
+
+      /**
+       * Add a marker to the map for every store listing.
+      **/
+      function addMarkers() {
+        /* For each feature in the GeoJSON object above: */
+        ancestors.features.forEach(function(marker) {
+          /* Create a div element for the marker. */
+          var el = document.createElement('div');
+          /* Assign a unique `id` to the marker. */
+          el.id = "marker-" + marker.properties.id;
+          /* Assign the `marker` class to each marker for styling. */
+          el.className = 'marker';
+          
+          /**
+           * Create a marker using the div element
+           * defined above and add it to the map.
+          **/
+          new mapboxgl.Marker(el, { offset: [0, -23] })
+            .setLngLat(marker.geometry.coordinates)
+            .addTo(map);
+
+          /**
+           * Listen to the element and when it is clicked, do three things:
+           * 1. Fly to the point
+           * 2. Close all other popups and display popup for clicked store
+           * 3. Highlight listing in sidebar (and remove highlight for all other listings)
+          **/
+          el.addEventListener('click', function(e){
+            /* Fly to the point */
+            flyToAncestor(marker);
+            /* Close all other popups and display popup for clicked store */
+            createPopUp(marker);
+            /* Highlight listing in sidebar */
+            var activeItem = document.getElementsByClassName('active');
+            e.stopPropagation();
+            if (activeItem[0]) {
+              activeItem[0].classList.remove('active');
+            }
+            var listing = document.getElementById('listing-' + marker.properties.id);
+            listing.classList.add('active');
+          });
+        });
+      }
+
+      /**
+       * Add a listing for each store to the sidebar.
+      **/
+      function buildLocationList(data) {
+        data.features.forEach(function(store, i){
+          /**
+           * Create a shortcut for `store.properties`,
+           * which will be used several times below.
+          **/
+          var prop = store.properties;
+
+          /* Add a new listing section to the sidebar. */
+          var listings = document.getElementById('listings');
+          var listing = listings.appendChild(document.createElement('div'));
+          /* Assign a unique `id` to the listing. */
+          listing.id = "listing-" + prop.id;
+          /* Assign the `item` class to each listing for styling. */
+          listing.className = 'item';
+
+          /* Add the link to the individual listing created above. */
+          var link = listing.appendChild(document.createElement('a'));
+          link.href = '#';
+          link.className = 'title';
+          link.id = "link-" + prop.id;
+          link.innerHTML = "<center>" + prop.FirstName + " " + prop.LastName + "<br>" + prop.Born + " - " + prop.Died + "</center>";
+
+          /* Add details to the individual listing. */
+          var details = listing.appendChild(document.createElement('div'));
+          details.innerHTML = '<b><center>' + prop.Relation + '</center></b>';
+          if (prop.Bio) {
+            details.innerHTML += '<p><center>' + prop.Bio + '</center></p>';
+          }
+
+          /**
+           * Listen to the element and when it is clicked, do four things:
+           * 1. Update the `currentFeature` to the store associated with the clicked link
+           * 2. Fly to the point
+           * 3. Close all other popups and display popup for clicked store
+           * 4. Highlight listing in sidebar (and remove highlight for all other listings)
+          **/
+          link.addEventListener('click', function(e){
+            for (var i=0; i < data.features.length; i++) {
+              if (this.id === "link-" + data.features[i].properties.id) {
+                var clickedListing = data.features[i];
+                flyToAncestor(clickedListing);
+                createPopUp(clickedListing);
+              }
+            }
+            var activeItem = document.getElementsByClassName('active');
+            if (activeItem[0]) {
+              activeItem[0].classList.remove('active');
+            }
+            this.parentNode.classList.add('active');
+          });
+        });
+      }
+
+      /**
+       * Use Mapbox GL JS's `flyTo` to move the camera smoothly
+       * a given center point.
+      **/
+      function flyToAncestor(currentFeature) {
+        map.flyTo({
+          center: currentFeature.geometry.coordinates,
+          zoom: 10
+        });
+      }
+
+      /**
+       * Create a Mapbox GL JS `Popup`.
+      **/
+      function createPopUp(currentFeature) {
+        var popUps = document.getElementsByClassName('mapboxgl-popup');
+        if (popUps[0]) popUps[0].remove();
+        var popup = new mapboxgl.Popup({closeButton: true, closeOnClick: true})
+          .setLngLat(currentFeature.geometry.coordinates)
+          .setHTML('<h3><center>' + currentFeature.properties.FirstName + ' ' + currentFeature.properties.LastName + '</center></h3>' +
+            '<h4><b>Relation: </b>' + currentFeature.properties.Relation + '<br> <b>Born: </b>' + currentFeature.properties.Born + ' to ' + currentFeature.properties.Died + '<br><b>Spouse:</b> ' + currentFeature.properties.Spouse + '<br><b>Children:</b> ' + currentFeature.properties.Children)
+          .addTo(map);
+      }
+    </script>
+  </body>
+</html>
