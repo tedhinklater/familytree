@@ -60,7 +60,7 @@
       }
 
       .heading {
-        background-image: linear-gradient(to bottom, rgba(27,3,58,1), rgba(65,40,97,1));
+        background-image: linear-gradient(to bottom, rgba(9,108,0,1), rgba(6,70,0,1));
         border-bottom:1px solid #eee;
         min-height:60px;
         line-height:60px;
@@ -183,7 +183,7 @@
   <body>
     <div class='sidebar'>
       <div class='heading'>
-        <h1><center><a href="rigs.html">Switch Ancestor Timeline</a></center></h1>
+        <h1><center><a href="rigs.html">Switch Between Ancestor Timeline (King Charlemagne)</a></center></h1>
       </div>
       <div id='listings' class='listings'></div>
     </div>
@@ -3153,7 +3153,7 @@
       function flyToAncestor(currentFeature) {
         map.flyTo({
           center: currentFeature.geometry.coordinates,
-          zoom: 12
+          zoom: 10
         });
       }
 
