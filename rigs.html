@@ -1,0 +1,2696 @@
+ <!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8' />
+    <title>Ancestor Locator</title>
+    <meta name='robots' content='noindex, nofollow'>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <link href='https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700' rel='stylesheet'>
+    <script src='mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v1.10.1/mapbox-gl.css' rel='stylesheet' />
+    <style>
+      body {
+        color:#404040;
+        font:400 15px/22px 'Source Sans Pro', 'Helvetica Neue', Sans-serif;
+        margin:0;
+        padding:0;
+        -webkit-font-smoothing:antialiased;
+      }
+
+      * {
+        -webkit-box-sizing:border-box;
+        -moz-box-sizing:border-box;
+        box-sizing:border-box;
+      }
+
+      .sidebar {
+        position:absolute;
+        width:25.0000%;
+        height:100%;
+        top:0;left:0;
+        overflow:hidden;
+        border-right:1px solid rgba(0,0,0,0.25);
+      }
+      .pad2 {
+        padding:20px;
+      }
+
+      .map {
+        position:absolute;
+        left:25.0000%;
+        width:75.0000%;
+        top:0;bottom:0;
+      }
+
+      h1 {
+        font-size:22px;
+        margin:0;
+        font-weight:400;
+        line-height: 20px;
+        padding: 20px 2px;
+      }
+
+      a {
+        color:rgb(223, 222, 178);
+        text-decoration:none;
+      }
+
+      a:hover {
+        color:#fff;
+      }
+
+      .heading {
+        background-image: linear-gradient(to bottom, rgba(27,3,58,1), rgba(65,40,97,1));
+        border-bottom:1px solid #eee;
+        min-height:60px;
+        line-height:60px;
+        padding:0 10px;
+        background-color: #2E0A66;
+        color: #fff;
+      }
+
+      .listings {
+        height:100%;
+        overflow:auto;
+        padding-bottom:60px;
+      }
+
+      .listings .item {
+        display:block;
+        background-image: linear-gradient(to bottom, rgba(242,221,178,1), rgba(244,219,169,1));
+        border-bottom:5px ridge #642E06;
+        padding:10px;
+        text-decoration:none;
+      }
+
+      .listings .item:last-child { border-bottom:none; }
+      .listings .item .title {
+        display:block;
+        color:#1E0465;
+        font-weight:700;
+      }
+
+      .listings .item .title small { font-weight:400; }
+      .listings .item.active .title,
+      .listings .item .title:hover { color:#4B031B; }
+      .listings .item.active {
+        background-color:#f8f8f8;
+      }
+      ::-webkit-scrollbar {
+        width:10px;
+        height:3px;
+        border-left:0;
+        background:rgba(0,0,0,0.1);
+      }
+      ::-webkit-scrollbar-track {
+        background:none;
+      }
+      ::-webkit-scrollbar-thumb {
+        background-image: linear-gradient(to bottom, rgba(175, 96, 0, 1), rgba(248, 196, 113, 1));
+        border-radius:0;
+      }
+
+      .marker {
+        border: none;
+        cursor: pointer;
+        height: 24px;
+        width: 24px;
+        background-image: url(markers.png);
+        background-color: rgba(0, 0, 0, 0);
+      }
+
+      .clearfix { display:block; }
+      .clearfix:after {
+        content:'.';
+        display:block;
+        height:0;
+        clear:both;
+        visibility:hidden;
+      }
+
+      /* Marker tweaks */
+      .mapboxgl-popup {
+        padding-bottom: 50px;
+      }
+
+      .mapboxgl-popup-close-button {
+        display:none;
+      }
+      .mapboxgl-popup-content {
+        font:400 15px/22px 'Source Sans Pro', 'Helvetica Neue', Sans-serif;
+        padding:0;
+        width:350px;
+      }
+      .mapboxgl-popup-content-wrapper {
+        padding:1%;
+      }
+      .mapboxgl-popup-content h3 {
+        background-image: linear-gradient(to bottom, rgba(27,3,58,1), rgba(65,40,97,1));
+        color:#fff;
+        margin:0;
+        display:block;
+        padding:10px;
+        border-radius:3px 3px 0 0;
+        font-weight:700;
+        margin-top:-15px;
+      }
+
+      .mapboxgl-popup-content h4 {
+        margin:0;
+        display:block;
+        padding: 10px 10px 10px 10px;
+        font-weight:400;
+        background-image: linear-gradient(to bottom, rgba(242,221,178,1), rgba(239,203,131,1));
+      }
+
+      .mapboxgl-popup-content div {
+        padding:10px;
+      }
+
+      .mapboxgl-container .leaflet-marker-icon {
+        cursor:pointer;
+      }
+
+      .mapboxgl-popup-anchor-top > .mapboxgl-popup-content {
+        margin-top: 15px;
+      }
+
+      .mapboxgl-popup-anchor-top > .mapboxgl-popup-tip {
+        border-bottom-color: #91c949;
+      }
+    </style>
+  </head>
+  <body>
+    <div class='sidebar'>
+      <div class='heading'>
+        <h1><center><a href="index.html">Switch Ancestor Timeline</a></center></h1>
+      </div>
+      <div id='listings' class='listings'></div>
+    </div>
+    <div id='map' class='map'></div>
+    <script>
+      // This will let you use the .remove() function later on
+      if (!('remove' in Element.prototype)) {
+        Element.prototype.remove = function() {
+          if (this.parentNode) {
+              this.parentNode.removeChild(this);
+          }
+        };
+      }
+
+      mapboxgl.accessToken = 'pk.eyJ1IjoidGhpbmtsYXRlciIsImEiOiJja2FxODlhaDUwNmRwMnJwcmd6ZmkycTVhIn0.iWQtEyUgJCH9Ql9SWKFtDw';
+      /** 
+       * Add the map to the page
+      */
+      var map = new mapboxgl.Map({
+        container: 'map',
+        attributionControl: false,
+        style: 'mapbox://styles/thinklater/ckaqa1qot091h1iqhgur74yq6', 
+        center: [24.43300509452819824, 49.15749272621892],
+        zoom: 3,
+        scrollZoom: true
+      });
+
+      var ancestors = {
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Jean Mary",
+        "LastName": "Lovell",
+        "Relation": "Grandmother",
+        "Spouse": "Eric Raymond Cook (1925-1997)",
+        "Born": "26 May 1929",
+        "Died": "Present",
+        "Children": "Maggie Cook, Gillian Cook",
+        "Bio": "Born 1929 in Wymington. Worked at EP Roses, Bedford (now Debenham's), learnt needlework, loved the work but the people were dreadful. Worked at Meltis, Miller Road, Bedford. Met husband Eric Raymond Cook 1946. Got married at Half Moon Pub, Kempston 1949. Lived in Ditmas Avenue, Kempston, had daughter Margaret Ann in 1959 at North Wing Hospital. Moved to Wootton 1962 and had daughter Gillian, born at home. Moved to Bedford, Hawbury Street in 1977 for 2 years. Moved to Exeter Walk, Bedford in 1979. Crossword Wizard."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.43300509452819824,
+          52.15749272621892
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Eric Raymond",
+        "LastName": "Cook",
+        "Relation": "Grandfather",
+        "Spouse": "Jean Mary Lovell (1929 - Present)",
+        "Born": "8 June 1925",
+        "Died": "4 February 1997",
+        "Children": "Maggie Cook, Gillian Cook",
+        "Bio": "Known to friends and family as Ray. Born in 1925, his grandparents lived on a farm (Priory Farm, Dudley?) where he was born. Went to Dixons Green, Dudley. Volunteered into RAF at 17 in 1942 during WWII and became a Lancaster Air Gunner Wireless Operator, came out in 1946. His father worked for Co-Op cannery and company moved from Dudley to Kelvin Avenue Bedford and the family to Kempston, where his father developed Parkinson's Disease. He met Jean Mary Lovell in Summer 1946. Soon after leaving RAF, he worked for Inland Revenue. Worked for furniture company called Mathisons and then went to 3M in 1960s. He became unwell while at 3M and retired in the 1980s. He loved Werthers Originals, Laurel & Hardy, especially loved listening to music and photography and had his own darkroom while living in Kempston, loved walking and reading when he could."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.43299436569213867,
+          52.1574236144635
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Charles Francis",
+        "LastName": "Lovell",
+        "Relation": "Great Grandfather",
+        "Spouse": "Mabel Bessie Balderson (1893-1975",
+        "Born": "4 October 1888",
+        "Died": "10 January 1955",
+        "Children": "Lilian Joan Balderson, Jean Mary Lovell, Margaret Elizabeth Lovell, Richard Alan Lovell",
+        "Bio": "Born in Greyfriars, Bedford. Lived at Number 2 & Number 6 Nelson Street, Queens Park, Bedford. Worked at WH Allen, Queen's Park (by QP bridge). Joined Armed Forces as a young man and fought in first World War. Came home and joined the police and became a Constable, promoted to Sergeant. Spent 30-odd years in the police force. Retired to Bedford Road, Kempston. Got bored and took a job at Igranic Sports Pavilion, Kempston. Managed the Half Moon pub on Kempston High Street where he died. Mabel Bessie (wife) looked after the pub until 1950s."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.6976318359375,
+          52.30176096373671
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Mabel Bessie",
+        "LastName": "Balderson",
+        "Relation": "Great Grandmother",
+        "Spouse": "Charles Francis Lovell (1893-1975)",
+        "Born": "13 January 1893",
+        "Died": "27 January 1975",
+        "Children": "Lilian Joan Balderson, Jean Mary Lovell, Margaret Elizabeth Lovell, Richard Alan Lovell",
+        "Bio": "Born in Spratton, went into servicing working in Rushden Hall for a family. Got married in Rushden Church to Charles Francis Lovell. Went to live at Wymington (Northampton border) where daughter Jean was born. Moved to Riseley where daughter Margaret was born. Moved to Eaton Socon. Moved to 68 Bedford Road, Kempston (an ordinary family house with 1 room used as the local Kempston Police Station). Moved to another police station until husband Charles retired from police force c1941. Moved to Spring Road, where husband worked at Igranic Sports Field. Husband took over Half Moon Pub, Kempston. Daughter Jean married her husband Eric Raymond Cook in 1949 at the pub. Husband passed away 1955, and she ran the pub a couple more years with son Richard (known as Lally) and daughter Margaret. Left pub for Spring Road, Kempston, where she developed dementia and entered Cedars Nursing Home, Ampthill, where she passed on."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9534072875976561,
+          52.3242191454936
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Albert",
+        "LastName": "Cook",
+        "Relation": "Great Grandfather",
+        "Spouse": "Doris Woodhall",
+        "Born": "Unknown",
+        "Died": "Deceased",
+        "Children": "Eric Raymond Cook, Ken Cook",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.0827674865722656,
+          52.50911685569952
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Doris",
+        "LastName": "Woodhall",
+        "Relation": "Great Grandmother",
+        "Spouse": "Albert Cook",
+        "Born": "Unknown",
+        "Died": "Deceased",
+        "Children": "Eric Raymond Cook, Ken Cook",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.074184417724609,
+          52.50995268098114
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "James",
+        "LastName": "Lovell",
+        "Relation": "2nd Great Grandfather",
+        "Spouse": "Lucy Ann Millard (1858-Deceased)",
+        "Born": 1858,
+        "Died": "Deceased",
+        "Children": "Ellen Elizabeth Lovell, Joseph Franklin Lovell, William Millard Lovell, Charles Francis Lovell, Annie Jane Lovell, Arthur James Lovell, Eltie Maud Lovell, Harry S Lovell",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.46348571777343744,
+          52.13712315244718
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Lucy Ann",
+        "LastName": "Millard",
+        "Relation": "2nd Great Grandmother",
+        "Spouse": "James Lovell (1858-Deceased)",
+        "Born": 1858,
+        "Died": "Deceased",
+        "Children": "Ellen Elizabeth Lovell, Joseph Franklin Lovell, William Millard Lovell, Charles Francis Lovell, Annie Jane Lovell, Arthur James Lovell, Eltie Maud Lovell, Harry S Lovell",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.2629852294921875,
+          52.080771955691176
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Robert",
+        "LastName": "Balderson",
+        "Relation": "2nd Great Grandfather",
+        "Spouse": "Elizabeth Hitchcock (1861-Deceased)",
+        "Born": 1862,
+        "Died": "Deceased",
+        "Children": "William Richard Balderson, Robert Samuel Balderson, Frederick Harold Balderson, Daisy Elizabeth Jane Balderson, Mabel Bessie Balderson, Alfred Walter Balderson, Walter Alfred Balderson, Norah Kathaline Jane Balderson.",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9505748748779296,
+          52.32358963210519
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Elizabeth",
+        "LastName": "Hitchcock",
+        "Relation": "2nd Great Grandmother",
+        "Spouse": "Robert Balderson (1861-Deceased)",
+        "Born": "24 December 1861",
+        "Died": "Deceased",
+        "Children": "William Richard Balderson, Robert Samuel Balderson, Frederick Harold Balderson, Daisy Elizabeth Jane Balderson, Mabel Bessie Balderson, Alfred Walter Balderson, Walter Alfred Balderson, Norah Kathaline Jane Balderson.",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9469699859619141,
+          52.32432406352089
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Richard",
+        "LastName": "Balderson",
+        "Relation": "3rd Great Grandfather",
+        "Spouse": "Jane Summerfield (1829-1901)",
+        "Born": "April 1837",
+        "Died": "December 1901",
+        "Children": "William Balderson, Robert Balderson, Sarah Ann Balderson, Fanny Balderson, Mary Ann Balderson, Hannah Balderson",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9468841552734375,
+          52.32201580944855
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Jane",
+        "LastName": "Summerfield",
+        "Relation": "3rd Great Grandmother",
+        "Spouse": "Richard Balderson (1837 - 1901)",
+        "Born": 1829,
+        "Died": "December 1901",
+        "Children": "William Balderson, Robert Balderson, Sarah Ann Balderson, Fanny Balderson, Mary Ann Balderson, Hannah Balderson",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9029388427734374,
+          52.33009417188445
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "William",
+        "LastName": "Hitchcock",
+        "Relation": "3rd Great Grandfather",
+        "Spouse": "Elizabeth Adnitt (1824-1910)",
+        "Born": 1826,
+        "Died": "Deceased",
+        "Children": "Elizabeth Hitchcock",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9159851074218749,
+          52.175616047410195
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Elizabeth",
+        "LastName": "Adnitt",
+        "Relation": "3rd Great Grandfather",
+        "Spouse": "William Hitchcock (1826-Deceased)",
+        "Born": 1824,
+        "Died": 1910,
+        "Children": "Elizabeth Hitchcock",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9008789062499999,
+          52.178142460091195
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "John",
+        "LastName": "Lovell",
+        "Relation": "3rd Great Grandfather",
+        "Spouse": "Elizabeth Franklin (1830-Deceased)",
+        "Born": 1820,
+        "Died": "Deceased",
+        "Children": "William Lovell, Sarah Lovell, Mary Lovell, James Lovell, John Lovell, Jane Lovell, Joseph Lovell, Annie Lovell, Steven Lovell",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.8808803558349609,
+          52.2059235296225
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Elizabeth",
+        "LastName": "Franklin",
+        "Relation": "3rd Great Grandmother",
+        "Spouse": "John Lovell",
+        "Born": 1830,
+        "Died": "Deceased",
+        "Children": "William Lovell, Sarah Lovell, Mary Lovell, James Lovell, John Lovell, Jane Lovell, Joseph Lovell, Annie Lovell, Steven Lovell",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9819030761718749,
+          51.998410382390325
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "James",
+        "LastName": "Millard",
+        "Relation": "3rd Great Grandfather",
+        "Spouse": "Rebecca Smith (1834-Deceased)",
+        "Born": 1838,
+        "Died": "Deceased",
+        "Children": "Lucy Ann Millard, Emily Matilda Millard, Pricilla Ellen Millard, Maud Mary Millard, Alice Maud Millard, Lizzie Millard, Eleanor Millard, Henry James Millard, Mary Elizabeth Millard",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.25144100189208984,
+          52.08554532633192
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Rebecca",
+        "LastName": "Smith",
+        "Relation": "3rd Great Grandmother",
+        "Spouse": "James Millard (1838-Deceased)",
+        "Born": 1834,
+        "Died": "Deceased",
+        "Children": "Lucy Ann Millard, Emily Matilda Millard, Pricilla Ellen Millard, Maud Mary Millard, Alice Maud Millard, Lizzie Millard, Eleanor Millard, Henry James Millard, Mary Elizabeth Millard",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.09724617004394531,
+          52.10012599789316
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Samuel",
+        "LastName": "Lovell",
+        "Relation": "4th Great Grandfather",
+        "Spouse": "Sarah Chapman (1798-1835)",
+        "Born": 1798,
+        "Died": "Deceased",
+        "Children": "William Lovell, John Lovell, George Lovell, James Lovell",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.49103736877441406,
+          52.11752164751784
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Sarah",
+        "LastName": "Chapman",
+        "Relation": "4th Great Grandmother",
+        "Spouse": "Samuel Lovell (1798-Deceased)",
+        "Born": 1798,
+        "Died": "Deceased",
+        "Children": "William Lovell, John Lovell, George Lovell, James Lovell",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5055427551269531,
+          52.10819209746323
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "George",
+        "LastName": "Franklin",
+        "Relation": "4th Great Grandfather",
+        "Spouse": "Rebecca (1801-Deceased)",
+        "Born": 1801,
+        "Died": "Deceased",
+        "Children": "Mary Mayo Franklin, Thomas Franklin, John Franklin, Elizabeth Franklin, Jane Thirsa Franklin",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.7103347778320312,
+          51.70362982097814
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "Spouse": "Mary Lincoln (1757-1823)",
+        "FirstName": "Thomas",
+        "LastName": "Lovell",
+        "Relation": "5th Great Grandfather",
+        "Born": "01 June 1756",
+        "Died": "October 1826",
+        "Children": "Sarah Loveland, Charles Lincoln Lovell, Frances Lovell, George Lovell, William Lovell, Mary Lovell, James Lovell, John Lovell, Margaret Love, Edward Loveland, Thomas Lovell, Frances Fanny Lovell, Henry Lovell, Samuel Lovell",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.008754730224609375,
+          53.092529321544035
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Mary",
+        "LastName": "Lincoln",
+        "Relation": "5th Great Grandmother",
+        "Spouse": "Thomas Lovell  (1756 - 1826)",
+        "Born": "18 December 1757",
+        "Died": "16 March 1823",
+        "Children": "Sarah Loveland, Charles Lincoln Lovell, Frances Lovell, George Lovell, William Lovell, Mary Lovell, James Lovell, John Lovell, Margaret Love, Edward Loveland, Thomas Lovell, Frances Fanny Lovell, Henry Lovell, Samuel Lovell",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.1972522735595703,
+          53.47154722108681
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "John",
+        "LastName": "Lincoln",
+        "Relation": "6th Great Grandfather",
+        "Spouse": "Ann ",
+        "Born": "c1730",
+        "Died": "c1800",
+        "Children": "John Lincoln, Mary Lincoln, Robert Lincoln, Benjamin Courbould Lincoln",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.7072448730468749,
+          53.23316704834061
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "William",
+        "LastName": "Chapman",
+        "Relation": "5th Great Grandfather",
+        "Spouse": "Frances Dudley (1772-1842)",
+        "Born": "9 May 1773",
+        "Died": "Deceased",
+        "Children": "William Henry Chapman, George Chapman, Sarah Chapman, Mary Chapman, Henry Chapman",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.17629623413085938,
+          52.0970151514275
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Frances",
+        "LastName": "Dudley",
+        "Relation": "5th Great Grandmother",
+        "Spouse": "William Chapman (1773-Deceased)",
+        "Born": 1772,
+        "Died": 1842,
+        "Children": "William Henry Chapman, George Chapman, Sarah Chapman, Mary Chapman, Henry Chapman",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5065727233886719,
+          52.11135487553742
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "William",
+        "LastName": "Dudley",
+        "Relation": "6th Great Grandfather",
+        "Spouse": "Frances Walker (1750-1820)",
+        "Born": "22 March 1750",
+        "Died": "31 May 1829",
+        "Children": "Frances Dudley, Mary Dudley, Anne Dudley, William Dudley, John Goodhall Dudley, Sophia Dudley, Phoebe Dudley, William Dudley, Henry Dudley",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5568695068359375,
+          52.0404548641514
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Frances",
+        "LastName": "Walker",
+        "Relation": "6th Great Grandmother",
+        "Spouse": "William Dudley (1750-1829)",
+        "Born": 1750,
+        "Died": "5 November 1820",
+        "Children": "Frances Dudley, Mary Dudley, Anne Dudley, William Dudley, John Goodhall Dudley, Sophia Dudley, Phoebe Dudley, William Dudley, Henry Dudley",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.61248779296875,
+          52.11783786924036
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "John",
+        "LastName": "Dudley",
+        "Relation": "7th Great Grandfather",
+        "Spouse": "Elizabeth Read (1726-Deceased)",
+        "Born": 1727,
+        "Died": "15 April 1770",
+        "Children": "William Dudley, Anne Dudley, Elizabeth Dudley, John Dudley, Jane Dudley",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5330085754394531,
+          51.951988842697226
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Elizabeth",
+        "LastName": "Read",
+        "Relation": "7th Great Grandmother",
+        "Spouse": "John Dudley (1727-1770)",
+        "Born": 1726,
+        "Died": "Deceased",
+        "Children": "William Dudley, Anne Dudley, Elizabeth Dudley, John Dudley, Jane Dudley",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.4998779296875,
+          52.124873222331125
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Henry",
+        "LastName": "Dudley",
+        "Relation": "8th Great Grandfather",
+        "Spouse": "Jane Worland (1691-1730)",
+        "Born": "16 February 1700",
+        "Died": "23 January 1753",
+        "Children": "Joseph Dudley, John Dudley",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5034828186035156,
+          52.14086332002992
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Jane",
+        "LastName": "Worland",
+        "Relation": "8th Great Grandmother",
+        "Spouse": "Henry Dudley (1700 - 1753)",
+        "Born": 1691,
+        "Died": "December 1730",
+        "Children": "Joseph Dudley, John Dudley",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.3905296325683593,
+          52.25402575698262
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Israel",
+        "LastName": "Dudley",
+        "Relation": "9th Great Grandfather",
+        "Spouse": "Helan Woodward (1651-Deceased)",
+        "Born": 1655,
+        "Died": "16 June 1708",
+        "Children": "Elizabeth Dudley, Isaac Dudley, Woodward Dudley, Ellen Dudley, Elizabeth Dudley, Mary Dudley, Ann Dudley, John Dudley, Henry Dudley",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5592727661132812,
+          52.1674568599227
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Helan",
+        "LastName": "Woodward",
+        "Relation": "9th Great Grandmother",
+        "Spouse": "Israel Dudley (1655 - 1708)",
+        "Born": "14 November 1651",
+        "Died": "Deceased",
+        "Children": "Elizabeth Dudley, Isaac Dudley, Woodward Dudley, Ellen Dudley, Elizabeth Dudley, Mary Dudley, Ann Dudley, John Dudley, Henry Dudley",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5104351043701172,
+          52.141600780793404
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Henry",
+        "LastName": "Woodward",
+        "Relation": "10th Great Grandfather",
+        "Spouse": "Elizabeth Scrivener (1620-1720)",
+        "Born": 1629,
+        "Died": 1690,
+        "Children": "Helan Woodward, John Woodward, Ann Woodward, Mary Woodward, Ann Woodward, Mary Woodward, Thomas Woodward, Henry Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5054569244384766,
+          52.13822943190593
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Elizabeth",
+        "LastName": "Scrivener",
+        "Relation": "10th Great Grandmother",
+        "Spouse": "Henry Woodward (1629-1690)",
+        "Born": 1629,
+        "Died": 1720,
+        "Children": "Helan Woodward, John Woodward, Ann Woodward, Mary Woodward, Ann Woodward, Mary Woodward, Thomas Woodward, Henry Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5221080780029297,
+          52.13564807042853
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "John",
+        "LastName": "Woodward",
+        "Relation": "11th Great Grandfather",
+        "Spouse": "Joan Brooks (1601-1652)",
+        "Born": 1602,
+        "Died": "Deceased",
+        "Children": "Henry Woodward, John Woodward, Henry Woodward, Wll Woodward, Rebecca Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5735206604003906,
+          52.13738655481045
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Joan",
+        "LastName": "Brooks",
+        "Relation": "11th Great Grandmother",
+        "Spouse": "John Woodward (1602-Deceased)",
+        "Born": "20 March 1601",
+        "Died": "26 February 1652",
+        "Children": "Henry Woodward, John Woodward, Henry Woodward, Wll Woodward, Rebecca Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.4888057708740234,
+          52.10745408363126
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "William",
+        "LastName": "Woodward",
+        "Relation": "12th Great Grandfather",
+        "Spouse": "Elizabeth Oldsbury (1571-Deceased)",
+        "Born": 1576,
+        "Died": 1630,
+        "Children": "John Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.49773216247558594,
+          52.144129124993185
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Elizabeth",
+        "LastName": "Oldsbury",
+        "Relation": "12th Great Grandmother",
+        "Spouse": "William Woodward (1576 - 1630)",
+        "Born": 1571,
+        "Died": "Deceased",
+        "Children": "John Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.8598785400390625,
+          52.70301871296324
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Henry",
+        "LastName": "Woodward",
+        "Relation": "13th Great Grandfather",
+        "Spouse": "Alice Gould (1555 - 1613)",
+        "Born": 1542,
+        "Died": "August 1621",
+        "Children": "Alice Woodward, William Woodward, Reginald Reynold Woodward, John Woodward, Constance Woodward, Andrew Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9455752372741698,
+          52.22778627553807
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Alice",
+        "LastName": "Gould",
+        "Relation": "13th Great Grandmother",
+        "Spouse": "Henry Woodward (1542 - 1621)",
+        "Born": 1555,
+        "Died": 1613,
+        "Children": "Alice Woodward, William Woodward, Reginald Reynold Woodward, John Woodward, Constance Woodward, Andrew Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.5141258239746094,
+          52.13190746491096
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "George Clerke of Windsor Castle",
+        "LastName": "Woodward",
+        "Relation": "14th Great Grandfather",
+        "Spouse": "Lady Agnes Mychell (1511 - 1573)",
+        "Born": 1507,
+        "Died": "March 1552",
+        "Children": "Sir John Woodward, Margaret Woodward, Richard Woodward, Henry Woodward, William Woodward, George Woodward, Katharine Woodward, Elizabeth Woodward, Emma Woodward, Anne Woodward, Alice Woodward, Jacamina Woodward"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9380435943603515,
+          52.22690566338861
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Lady Agnes",
+        "LastName": "Mychell",
+        "Relation": "14th Great Grandmother",
+        "Spouse": "George Clerke of Windsor Castle Woodward (1507-1552)",
+        "Born": 1511,
+        "Died": "3 February 1573",
+        "Children": "Sir John Woodward, Margaret Woodward, Richard Woodward, Henry Woodward, William Woodward, George Woodward, Katharine Woodward, Elizabeth Woodward, Emma Woodward, Anne Woodward, Alice Woodward, Jacamina Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.7581210136413574,
+          52.00370773254271
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "John",
+        "LastName": "Woodward",
+        "Relation": "15th Great Grandfather",
+        "Spouse": "Marjorie Collingridge (1481 - 1560)",
+        "Born": 1477,
+        "Died": "8 July 1566",
+        "Children": "George Clerke of Windsor Castle Woodward, Maria Woodward, John  Woodward Sr, Anne Woodward, Robertus Woodward, Martius Woodward, Richardus Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.6925086975097656,
+          53.57268349484011
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "Died": "1 December 1560",
+        "Born": 1481,
+        "Spouse": "John Woodward (1477 - 1566)",
+        "Relation": "15th Great Grandmother",
+        "LastName": "Collingridge",
+        "FirstName": "Marjorie",
+        "Children": "George Clerke of Windsor Castle Woodward, Maria Woodward, John  Woodward Sr, Anne Woodward, Robertus Woodward, Martius Woodward, Richardus Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.8507537841796875,
+          51.80712881576055
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "George",
+        "LastName": "Woodward II",
+        "Relation": "16th Great Grandfather",
+        "Spouse": "Bridgett Upton (1458 - 1545)",
+        "Born": 1450,
+        "Died": "30 August 1545",
+        "Children": "Hugh Woodward, Lord Hugh Woodward of Shevington Manor, John Woodward, William Woodward, Symon Woodward, Ralph Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.6894187927246094,
+          53.57283639401199
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Bridgett",
+        "LastName": "Upton",
+        "Relation": "16th Great Grandmother",
+        "Spouse": "George Woodward II (1450 - 1545)",
+        "Born": 1458,
+        "Died": "30 August 1545",
+        "Children": "Hugh Woodward, Lord Hugh Woodward of Shevington Manor, John Woodward, William Woodward, Symon Woodward, Ralph Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.8510971069335938,
+          51.817210992860566
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "George",
+        "LastName": "Woodward",
+        "Relation": "17th Great Grandfather",
+        "Spouse": "Agnes Ann Corbett (1427 - 1457)",
+        "Born": 1430,
+        "Died": 1499,
+        "Children": "George Woodward II, Lawrence Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.683582305908203,
+          53.574620176832404
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Agnes Ann",
+        "LastName": "Corbett",
+        "Relation": "17th Great Grandmother",
+        "Spouse": "George Woodward (1430 - 1499)",
+        "Born": 1427,
+        "Died": 1457,
+        "Children": "George Woodward II, Lawrence Woodward",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.679462432861328,
+          53.5753846321476
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "William",
+        "LastName": "Stanley",
+        "Relation": "18th Great Grandfather",
+        "Spouse": "Joan de Beaumont, Baroness Lovell (1435 - 1466)",
+        "Born": "November 23 1437",
+        "Died": "10 February 1495",
+        "Children": "Agnes Ann Corbett, William Stanley, William Stanley, William Stanley Jr, Joan Cressett, Catherine Stanley, Francis Lovell, Anne Stanley, Joan Lovell, Richard Stanley, George Stanley, John Stanley, Thomas Stanley, William Stanley, Lady Margaret Anne Stanley, Edward Stanley Lord Mounteagle, Agnes Stanley",
+        "Bio": "Knight of the Garter"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.8224563598632812,
+          53.59270857890206
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Sir Thomas",
+        "LastName": "Stanley",
+        "Relation": "19th Great Grandfather",
+        "Spouse": "Lady Joanna Goushill (1404 - 1466)",
+        "Born": "23 October 1406",
+        "Died": "20 February 1459",
+        "Children": "Lady Elizabeth Stanley, Katherine Stanley, Lady Margaret Stanley, Thomas Stanley 1st Earl of Derby, William Stanley, James Stanley, Sir John Stanley Esq",
+        "Bio": "1st Baron Stanley"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.8432488441467285,
+          53.59750962192851
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Lady Johanna",
+        "LastName": "Goushill",
+        "Relation": "19th Great Grandmother",
+        "Spouse": "Sir Thomas Stanley 1st Baron Stanley (1406 - 1459)",
+        "Born": "1 November 1404",
+        "Died": "27 April 1466",
+        "Children": "Lady Elizabeth Stanley, Katherine Stanley, Lady Margaret Stanley, Thomas Stanley 1st Earl of Derby, William Stanley, James Stanley, Sir John Stanley Esq",
+        "Bio": "Joan Gousell (Goushill) was the daughter and coheir of Sir Robert Goushill of Hoveringham, Nottinghamshire, by Elizabeth, the twice widowed daughter of Richard FitzAlan, Earl of Arundel. Elizabeth's first marriage was to Sir William de Montagu, and her second to Thomas de Mowbray, 1st Duke of Norfolk. Joan married Sir Thomas Stanley, KG, Lord of Lathom and Knowsley, 1st Baron Stanley, Lord Lieutenant of Ireland, King's Chamberlain, Justice of the Counties of Chester, Flint and North Wales. Sir Thomas Stanley was the eldest son and of Sir John Stanley and Isabell Harington, daughter of Robert de Harington and Isabel Loring. Joan's husband, Sir Thomas, died on February 11, 1458/1459. It was through the effort of Joan Gousell's and Sir Thomas Stanley's sons, Thomas and William who turned against Richard III at the Battle of Bosworth Field, and their son-in-law Sir John Savage who was commander of the left wing of Henry Tudor's army that gave the crown to Henry Tudor."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9609603881835936,
+          53.01416360329406
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Sir John",
+        "LastName": "Stanley II, King of Mann",
+        "Relation": "20th Great Grandfather",
+        "Spouse": "Elizabeth Isabel Harrington (1385 - 1457)",
+        "Born": "1 November 1386",
+        "Died": "27 November 1437",
+        "Children": "Isabel Maud de Stanley, Sir Thomas Stanley 1st Baron Stanley, Richard Stanley, Edward Stanley, Lady Alice Stanley, Isabel Margaret Stanley, Edward Archdeacon of Chester Stanley, William VII Stanley, John Stanley III, Elizabeth Stanley, James Stanley, Katherine Stanley",
+        "Bio": "He may justly be considered an enlightened and upright ruler, much in advance of his time. He caused the ancient laws and constitutions of his little kingdom to be reduced to writing, he humbled the overbearing ecclesiastical authorities, and, after he had practically concentrated all power into his own hands, he wisely conceded a representative form of government. (Appraisal by AW Moore, Manx antiquary and Speaker of the House of Keys."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.8072214126586914,
+          53.58679885390294
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Elizabeth Isabel",
+        "LastName": "Harrington",
+        "Relation": "20th Great Grandmother",
+        "Spouse": "Sir John Stanley II, King of Mann",
+        "Born": 1385,
+        "Died": "30 September 1457",
+        "Children": "Isabel Maud de Stanley, Sir Thomas Stanley 1st Baron Stanley, Richard Stanley, Edward Stanley, Lady Alice Stanley, Isabel Margaret Stanley, Edward Archdeacon of Chester Stanley, William VII Stanley, John Stanley III, Elizabeth Stanley, James Stanley, Katherine Stanley",
+        "Bio": "Died at Thurland Castle, Lancashire"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -3.102264404296875,
+          54.13166773134297
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Sir John",
+        "LastName": "Stanley I",
+        "Relation": "21st Great Grandfather",
+        "Spouse": "Isabelle Lathom (1365 - 1414)",
+        "Born": 1386,
+        "Died": "6 January 1437",
+        "Children": "Ellen Stanley, Sir John Stanley II, King of Mann, Henry Stanley, Isabel Stanley, Thomas Stanley, George Stanley, Margaret Stanley, Ralph Stanley",
+        "Bio": "When John 1 Stanley was born in 1386, his father, William, was 100. He had one son with Isabel Lathom in 1386. He died in 1414 in Ardee, Louth, Ireland, at the age of 64."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.8133583068847656,
+          53.60615521721495
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Isabelle",
+        "LastName": "Lathom",
+        "Relation": "21st Great Grandmother",
+        "Spouse": "Sir John Stanley I (1386 - 1437)",
+        "Born": 1365,
+        "Died": "26 October 1414",
+        "Children": "Ellen Stanley, Sir John Stanley II, King of Mann, Henry Stanley, Isabel Stanley, Thomas Stanley, George Stanley, Margaret Stanley, Ralph Stanley",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.8446006774902344,
+          53.5736518469245
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Thomas",
+        "LastName": "Lathom",
+        "Relation": "22nd Great Grandfather",
+        "Spouse": "Joan de Venables (1332 - 1397)",
+        "Born": 1329,
+        "Died": "20 March 1381",
+        "Children": "Margaret Lathom, Thomas Lathom, Edward Lathom, Isabelle Lathom, Cecily Lathom, Edwart de Lathom, Katherine Lathom",
+        "Bio": "In the Domesday Book of 1086, Knowsley was known as \"Chenulveslei,\" becoming \"Knuvesle\" in 1199; \"Knouselegh\" in 1258; \"Knouleslee\" in 1261; \"Knusele\" in 1262; and \"Knouslegh\" in 1346. The pronunciation varies between \"Nowsley'\"and \"Nosely.\"  The village of Knowsley developed as a direct result of the Lathom/Stanley family better known as the Earls of Derby with their vast estate and residence at Knowsley Hall. The manors of Knowsley, Roby, Huyton and Tarbock were all held by the Lathom family before the year 1200."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.8322410583496094,
+          53.612469585184876
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Joan",
+        "LastName": "de Venables",
+        "Relation": "22nd Great Grandmother",
+        "Spouse": "Thomas Lathom (1329 - 1381)",
+        "Born": 1332,
+        "Died": "18 August 1397",
+        "Children": "Margaret Lathom, Thomas Lathom, Edward Lathom, Isabelle Lathom, Cecily Lathom, Edwart de Lathom, Katherine Lathom",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.46368408203125,
+          53.194104381703575
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Thomas",
+        "LastName": "Lathom",
+        "Relation": "23rd Great Grandfather",
+        "Spouse": "Eleanor de Ferrers (1305 - 1381)",
+        "Born": "23 February 1301",
+        "Died": "14 September 1381",
+        "Children": "Thomas Lathom, Edward de Lathom, Robert de Lathom",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.791213989257812,
+          53.60788667012782
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Eleanor",
+        "LastName": "de Ferrers",
+        "Relation": "23rd Great Grandmother",
+        "Spouse": "Thomas Lathom (1301 - 1381)",
+        "Born": 1305,
+        "Died": "17 September 1381",
+        "Children": "Thomas Lathom, Edward de Lathom, Robert de Lathom",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.097015380859375,
+          52.969319189066155
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "John",
+        "LastName": "de Ferrers",
+        "Relation": "24th Great Grandfather",
+        "Spouse": "Hawise de Muscegros (1276 - 1340)",
+        "Born": "20 June 1271",
+        "Died": "12 August 1312",
+        "Children": "John de Ferrers, Eleanor de Ferrers, Baron Robert de Ferrers",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -3.1688690185546875,
+          51.47496812303541
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Hawise",
+        "LastName": "de Muscegros",
+        "Relation": "24th Great Grandmother",
+        "Spouse": "John de Ferrers (1271 - 1312)",
+        "Born": "21 December 1276",
+        "Died": "1340/50",
+        "Children": "John de Ferrers, Eleanor de Ferrers, Baron Robert de Ferrers",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.4092674255371094,
+          51.07214476155937
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Robert",
+        "LastName": "de Ferrers",
+        "Relation": "25th Great Grandfather",
+        "Spouse": "Eleanor de Bohun (1241 - 1314)",
+        "Born": 1239,
+        "Died": "27 April 1279",
+        "Children": "John de Ferrers",
+        "Bio": "He was married at the age of ten to seven-year-old Marie de Lusignan, the daughter of Hughe daughter of Hugh XI, Count de la Marche, a half brother of King Henry III. Mary died in 1266, and they had no issue."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.6903495788574219,
+          52.85451666858278
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Eleanor",
+        "LastName": "de Bohun Heiress of Debden",
+        "Relation": "25th Great Grandmother",
+        "Spouse": "Robert de Ferrers (1239 - 1279)",
+        "Born": 1241,
+        "Died": "20 February 1314",
+        "Children": "John de Ferrers",
+        "Bio": "She and her son, John de Ferrers, presented to the church of Eynesbury, Huntingdonshire in 1296. Eleanor, Countess of Derby, died 20 Feb. 1313/4, and was buried at Walden Abbey, Essex."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.254058837890625,
+          52.010668633433916
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "William",
+        "LastName": "de Ferrers, Knight, 5th Earl of Derby",
+        "Relation": "26th Great Grandfather",
+        "Spouse": "Margaret de Quincy (1206 - 1266)",
+        "Born": 1193,
+        "Died": "28 March 1254",
+        "Children": "Maud (Matilda de Ferrers, Sybil de Ferrers, Robert de Ferrers, William de Ferrieres, Agnes de Ferrers, Elizabeth de Ferrers",
+        "Bio": "He was afflicted from youth with gout, and habitually travelled in a chariot or litter. He accompanied the king to France in 1230. He married (2nd) in or before 1238 MARGARET (or MARGERY) DE QUINCY, daughter and co-heiress of Roger de Quincy, 2nd Earl of Winchester, by his 1st wife, Ellen, daughter and co-heiress of Alan Fitz Roland, lord of Galloway, hereditary Constable of Scotland [see QUINCY 7 for her ancestry]. They had two sons, Robert, Knt. [6th Earl of Derby], and William, Knt., and three daughters, Elizabeth, Joan, and Agnes. He had livery of Chardey Castle and the rest of his mother's lands 10 Nov. 1247. He was invested with the Earldom of Derby 2 Feb. 1247/8. In 1245 he was granted respite of forest offences because he \"laboured under infirmity.\" He presented to the church of Brington, Northamptonshire in 1250. While passing over a bridge at St. Neots, Huntingdonshire, he was accidentally thrown from his chariot sustaining broken limb bones from which he never recovered."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.47491455078125,
+          52.9246351782679
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Margaret",
+        "LastName": "de Quincy, Countess of Lincolnshire",
+        "Relation": "26th Great Grandmother",
+        "Spouse": "de Ferrers, Knight, 5th Earl of Derby (1193 - 1254)",
+        "Born": 1206,
+        "Died": "30 March 1266",
+        "Children": "Maud (Matilda de Ferrers, Sybil de Ferrers, Robert de Ferrers, William de Ferrieres, Agnes de Ferrers, Elizabeth de Ferrers",
+        "Bio": "Not to be confused with her cousin, Margaret de Quincy, daughter of Roger, who married William Ferrers. Also: her son, Edmund de Lacy, predeceased her and did not become Earl of Lincoln."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.47103881835937494,
+          53.23645491022574
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "William",
+        "LastName": "de Ferrers, Knight, 4th Earl of Derby",
+        "Relation": "27th Great Grandfather",
+        "Spouse": "Agnes of Chester (1174 - 1247)",
+        "Born": 1162,
+        "Died": "22 September 1247",
+        "Children": "William de Ferrers, Ranulph de Ferrers, Thomas de Ferrers, Robert de Ferrers, Hugh de Ferrers, Bertha de Ferrers, Agnes de Ferrers, Sibyl de Ferrers",
+        "Bio": "AGNES OF CHESTER, married in 1192 WILLIAM DE FERRERS, Knt, 4th Earl of Derby, Sheriff of Nottinghamshire and Derbyshire, 1194, Sheriff of Lancashire, 1223-8. Before the return of King Richard I from captivity to England, he supported the Justiciar against John, Count of Mortain, and, with the Earl of Chester, he besieged Nottingham Castle. He took part in the second Coronation of King Richard I, which was solemnized in Winchester Cathedral 17 April 1194. He was present at the Coronation of King John 27 May 1199. On 7 June 1199 the king restored and confirmed to him the third penny of Derby, and with his own hand girded him with the sword as an Earl. In 1213 he witnessed the king's surrender of the kingdom to Pope Innocent III. He was a witness to the last will of King John in 1216, and appointed one of its managers and disposers. He was present at the Coronation of King Henry III 28 October 1216. On 30 October following, the king granted him the Castles of Peak and Bolsover, Derbyshire, and, on 16 Jan. 1216/17, he was granted the manor of Melbourne, Derbyshire to hold until the king was 14 years of age. He assisted the Regent to raise the Siege of Lincoln Castle 20 May 1217, and, with his brother-in-law, Ranulph, Earl of Chester, he commanded the royal forces which razed Montsorel Castle. In June 1218 he went on Crusade. In 1225 he witnessed the third great charter of King Henry III. He was heir c.1226/7 to his younger brother, Robert de Ferrers. He accompanied the king in the expedition to Brittany and Poitou in 1230. In 1244 he was summoned for military service against the Scots."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.723651885986328,
+          52.863119277901255
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Agnes",
+        "LastName": "of Chester",
+        "Relation": "27th Great Grandmother",
+        "Spouse": "William de Ferrers, Knight, 4th Earl of Derby",
+        "Born": 1174,
+        "Died": "2 November 1247",
+        "Children": "William de Ferrers, Ranulph de Ferrers, Thomas de Ferrers, Robert de Ferrers, Hugh de Ferrers, Bertha de Ferrers, Agnes de Ferrers, Sibyl de Ferrers",
+        "Bio": "AGNES OF CHESTER, married in 1192 WILLIAM DE FERRERS, Knt, 4th Earl of Derby, Sheriff of Nottinghamshire and Derbyshire, 1194, Sheriff of Lancashire."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.7578125,
+          52.980069558305566
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "William I",
+        "LastName": "de Ferrers, Knight Templar, 3rd Earl of Derby",
+        "Relation": "28th Great Grandfather",
+        "Spouse": "Sibyl de Braose (1151 - 1228)",
+        "Born": 1136,
+        "Died": "21 Oct 1190",
+        "Children": "William de Ferrers, Petronille Ferrers",
+        "Bio": "William I de Ferrers, William was the son of Robert de Ferrers, 2nd Earl of Derby, and his wife, Margaret Peverel. He succeeded his father as Earl of Derby in 1162. He was married to Sybil, the daughter of William de Braose, 3rd Lord of Bramber, and Bertha of Hereford. 3rd Earl of Derby (died 1190) was a 12th-century English Earl who resided in Tutbury Castle in Staffordshire and was head of a family which controlled a large part of Derbyshire known as Duffield Frith. He was also a Knight Templar. With the failure of the revolt, de Ferrers was taken prisoner by King Henry, at Northampton on the 31 July 1174, along with the King of Scots and the earls of Chester and Lincoln, along with a number of his Derbyshire underlings and was held at Caen. He was deprived of his castles at Tutbury and Duffield and both were put out of commission (and possibly Pilsbury.) In addition to defray the costs of the war Henry levied a so-called \"Forest Fine\" of 200 marks. He seems to have afterwards regained the confidence of Henry II., and he showed his fidelity to the next Sovereign, (King Richard I.), by accompanying him in his expedition to the Holy Land, and joined the Third Crusade and died at the Siege of Acre in 1190."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.53533935546875,
+          52.95856614537994
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Sibyl",
+        "LastName": "de Braose, Countess of Derby",
+        "Relation": "28th Great Grandmother",
+        "Spouse": "William I de Ferrers, de Ferrers, Knight Templar, 3rd Earl of Derby (1136 - 1190)",
+        "Born": 1151,
+        "Died": "5 February 1228",
+        "Children": "William de Ferrers, Petronille Ferrers",
+        "Bio": "Sybil, the daughter of William de Braose, 3rd Lord of Bramber,"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.3294181823730469,
+          50.89393847048056
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Robert",
+        "LastName": "de Ferrers, 2nd Earl of Derby",
+        "Relation": "29th Great Grandfather",
+        "Spouse": "Margaret Peverell (1114 - 1160)",
+        "Born": "18 November 1101",
+        "Died": "29 June 1161",
+        "Children": "Isabella de Ferrieres, Walcheline de Ferrers, William de Ferrers, Petronel de Ferrers, Walcheline Ferrers, Matilda de Ferrers, Isolde de Ferrers, Robert de Ferrieres III, Hugo de Ferrers, Henry de Ferrers, Millicent Ferrers, Agatha Ferrers, Thomas Henry de Ferrers, Ermentrude de Ferrers",
+        "Bio": "Little is known of Robert's life, other than his generosity to the church. In 1148, he established Merevale Abbey in Warwickshire, England, where he requested to be buried in an ox hide. The stone effigies of Robert and his wife, Margaret Peverel, lie in the gatehouse chapel of Merevale Abbey, near the village of Atherstone."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.67266845703125,
+          52.855967830680505
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Margaret",
+        "LastName": "Peverell",
+        "Relation": "29th Great Grandmother",
+        "Spouse": "Robert de Ferrers (2nd Earl of Derby) (1101 - 1161)",
+        "Born": "1 November 1114",
+        "Died": 1160,
+        "Children": "Isabella de Ferrieres, Walcheline de Ferrers, William de Ferrers, Petronel de Ferrers, Walcheline Ferrers, Matilda de Ferrers, Isolde de Ferrers, Robert de Ferrieres III, Hugo de Ferrers, Henry de Ferrers, Millicent Ferrers, Agatha Ferrers, Thomas Henry de Ferrers, Ermentrude de Ferrers",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.226348876953125,
+          53.0205661474133
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "William",
+        "LastName": "de Peverell The Younger, Knight",
+        "Relation": "30th Great Grandfather",
+        "Spouse": "Avicia Lancaster (1085 - 1149)",
+        "Born": 1080,
+        "Died": 1155,
+        "Children": "Margaret Peverell",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.10687255859375,
+          52.98337682621539
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Avicia",
+        "LastName": "Lancaster",
+        "Relation": "30th Great Grandmother",
+        "Spouse": "William de Peverell The Younger, Knight (1080 - 1155)",
+        "Born": 1085,
+        "Died": 1149,
+        "Children": "Margaret Peverell",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -3.0596923828124996,
+          52.860839234299405
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Sir William",
+        "LastName": "de Peverell the Elder",
+        "Relation": "31st Great Grandfather",
+        "Spouse": "Adeline de Lancaster (1054 - 1120)",
+        "Born": 1050,
+        "Died": "17 April 1113",
+        "Children": "Adelise de Peverell, William de Peverell The Younger",
+        "Bio": "William Peverel was a favourite of William the Conqueror. He was greatly honoured after the Norman Conquest, and received as his reward over a hundred manors in central England from the king. In 1086, the Domesday Book records William as holding the substantial number of 162 manors, forming collectively the Honour of Peverel, in Nottinghamshire and Derbyshire, including Nottingham Castle."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.0546875,
+          48.65468584817256
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Adeline",
+        "LastName": "de Lancaster",
+        "Relation": "31st Great Grandmother",
+        "Spouse": "Sir William de Peverell the Elder (1050 - 1113)",
+        "Born": 1054,
+        "Died": "19 January 1120",
+        "Children": "Adelise de Peverell, William de Peverell The Younger",
+        "Bio": "Wife of Sir William Peverell, The Elder, of Nottingham, Sheriff of Nottinghamshire"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.9104919433593749,
+          52.87327438033861
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Ranulph",
+        "LastName": "de Peverel I, of Hatfield",
+        "Relation": "32nd Great Grandfather",
+        "Spouse": "Maude Athelida Ingelrica (1033-1073)",
+        "Born": 1030,
+        "Died": 1100,
+        "Children": "Melette de Peverell, Emma de Peverel, Sir William de Peverell, Pagan de Peverel, Robert Peverel, Randulph Perverell",
+        "Bio": "Ranulph Peverel also appears in Domesday as the lord of sixty-four manors. Of a verity, the merits of these Peverels must have been great, or their influence at Court from some cause or another extraordinary."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.4729270935058593,
+          49.04664484986061
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Maude",
+        "LastName": "Athelida Ingelrica",
+        "Relation": "32nd Great Grandmother",
+        "Spouse": "Ranulph de Peverel I, of Hatfield (1030 - 1100)",
+        "Born": 1033,
+        "Died": "2 November 1083",
+        "Children": "Melette de Peverell, Emma de Peverel, Sir William de Peverell, Pagan de Peverel, Robert Peverel, Randulph Perverell",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.09666681289672852,
+          51.515539724293845
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Ingelric",
+        "LastName": "The Saxon, Prince of England",
+        "Relation": "33rd Great Grandfather",
+        "Spouse": "Princess Adele of France (1009 - 1079)",
+        "Born": 1005,
+        "Died": "5 January 1066",
+        "Children": "Maude Athelida Ingelric",
+        "Bio": "Ingelric, a nobleman of Norman origin, his family background is unknown. Ingelric is a Continental-Germanic name."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -0.09625911712646484,
+          51.519091526339075
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Princess Adele",
+        "LastName": "of France",
+        "Relation": "33rd Great Grandmother",
+        "Spouse": "Ingelric The Saxon, Prince of England",
+        "Born": "March 05 1009",
+        "Died": "8 January 1079",
+        "Children": "Maude Athelida Ingelric",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1.4436721801757812,
+          43.60823944964323
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "King Cnut",
+        "LastName": "The Great of Denmark, England, Norway and the North Sea Empire",
+        "Relation": "34th Great Grandfather",
+        "Spouse": "Emma of Normandy (985 - 1052)",
+        "Born": 990,
+        "Died": "12 November 1035",
+        "Children": "Ingelric The Saxon, Aedgina Northumbria, Hardiknut Konig von Danemark und England, Gunhild von Danemark, Aethelreda Atheling",
+        "Bio": "s a Danish prince, Cnut won the throne of England in 1016 in the wake of centuries of Viking activity in northwestern Europe. Scotland submitted to him in 1017. His later accession to the Danish throne in 1018 brought the crowns of England and Denmark together. Cnut sought to keep this power-base by uniting Danes and English under cultural bonds of wealth and custom, as well as through sheer brutality. After a decade of conflict with opponents in Scandinavia, Cnut claimed the crown of Norway in Trondheim in 1028."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          11.93115234375,
+          55.466399363938194
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Emma",
+        "LastName": "of Normandy, Queen of England, Denmark and Norway",
+        "Relation": "34th Great Grandmother",
+        "Spouse": "King Cnut of Denmark, England and Norway",
+        "Born": "23 June 985",
+        "Died": "6 March 1052",
+        "Children": "Ingelric The Saxon, Aedgina Northumbria, Hardiknut Konig von Danemark und England, Gunhild von Danemark, Aethelreda Atheling",
+        "Bio": "Emma of Normandy, Queen of England, Denmark and Norway described as \"the most distinguished woman of her time for delightful beauty and wisdom\""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0.37628173828125,
+          49.757537844205025
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Svend Forkbeard",
+        "LastName": "Tveskaeg",
+        "Relation": "35th Great Grandfather",
+        "Spouse": "Swietoslawa",
+        "Born": 960,
+        "Died": 1014,
+        "Children": "Gyda Sveinsdatter, Harald II King of Denmark, Knud Den Store, Estrid Svensdatter, Gunhild Svensdatter, Thyra Sveinsdotter",
+        "Bio": "Sweyn Forkbeard was king of Denmark from 986 to 1014. He was the father of King Harald II of Denmark, King Cnut the Great and Queen Estrid Svendsdatter. In the mid-980s, Sweyn revolted against his father, Harald Bluetooth, and seized the throne. Harald was driven into exile and died shortly afterwards in November 986 or 987. In 1000, with the allegiance of Trondejarl, Eric of Lade, Sweyn ruled most of Norway. In 1013, shortly before his death, he became the first Danish king of England after a long effort."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.08544921875,
+          56.43820369358165
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Princess",
+        "LastName": "Swietoslawa of Bohemia",
+        "Relation": "35th Great Grandmother",
+        "Spouse": "Svend Forkbeard (960 - 1014)",
+        "Born": "Unknown",
+        "Died": "Deceased",
+        "Children": "Gyda Sveinsdatter, Harald II King of Denmark, Knud Den Store, Estrid Svensdatter, Gunhild Svensdatter, Thyra Sveinsdotter",
+        "Bio": "Swietoslawa is the name tentatively assigned to a Polish princess, the daughter of Mieszko I of Poland and sister of Boleslaw I of Poland."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.080154418945312,
+          55.640011422290684
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Harald Bluetooth",
+        "LastName": "Blatand King of Denmark",
+        "Relation": "36th Great Grandfather",
+        "Spouse": "Gunhild",
+        "Born": 911,
+        "Died": "1 November 985",
+        "Children": "Svend Tveskaeg",
+        "Bio": "During his reign, Harald oversaw the reconstruction of the Jelling runic stones, and numerous other public works. The most famous is fortifying the fortress of Aros (nowadays Aarhus) which was situated in a central position in his kingdom in the year 979. Some believe these projects were a way for him to consolidate economic and military control of his country and the main city. While quiet prevailed throughout the interior, he turned his energies to foreign enterprises. He came to the help of Richard the Fearless of Normandy in 945 and 963, while his son conquered Samland, and after the assassination of King Harald Greycloak of Norway, managed to force the people of that country into temporary subjugation to himself."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          9.425926208496094,
+          55.75571349188569
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Gorm",
+        "LastName": "den Gamle",
+        "Relation": "37th Great Grandfather",
+        "Spouse": "Thyra Dannebod (Unknown - 935)",
+        "Born": 895,
+        "Died": 958,
+        "Children": "Harald Blatand, Toke Gormsson, Knud Gormsson, Gunhild Gormsdottir",
+        "Bio": "Gorm the Old was ruler of Denmark, reigning from c. 936 to his death c. 958."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          9.369621276855469,
+          55.76150892439349
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Thyra",
+        "LastName": "Dannebod",
+        "Relation": "37th Great Grandmother",
+        "Spouse": "Gorm den Gamle (895 - 958)",
+        "Born": "Unknown",
+        "Died": 935,
+        "Children": "Harald Blatand, Toke Gormsson, Knud Gormsson, Gunhild Gormsdottir",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          9.465065002441406,
+          55.73948169869349
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Hardeknud Cnut I",
+        "LastName": "King of Denmark",
+        "Relation": "38th Great Grandfather",
+        "Spouse": "Unknown",
+        "Born": 875,
+        "Died": 936,
+        "Children": "Gorm den Gamle",
+        "Bio": "Hardeknud (or Cnut I) was King of Denmark. Ragnarssona þáttr makes Hardeknud son of the viking chieftain Sigurd Snake-in-the-Eye, himself one of the sons of Ragnar Lodbrok. The saga in turn makes Hardeknud the father of the historical king, Gorm den Gamle."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          9.482917785644531,
+          55.787770751411436
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Sven",
+        "LastName": "Gormsforfader",
+        "Relation": "39th Great Grandfather",
+        "Spouse": "Unknown",
+        "Born": 835,
+        "Died": "Unknown",
+        "Children": "Hardeknud Cnut I King of Denmark",
+        "Bio": "The siege of Paris of 885–886 was part of a Viking raid on the Seine, in the Kingdom of the West Franks. The siege was the most important event of the reign of Charles the Fat, and a turning point in the fortunes of the Carolingian dynasty and the history of France. It also proved to the Franks the strategic importance of Paris, at a time when it also was one of the largest cities in West Francia. The siege is the subject of an eyewitness account in the Latin poem Bella Parisiacae urbis of Abbo Cernuus.  With hundreds of ships, and possibly tens of thousands of men, the Vikings arrived outside Paris in late November 885, at first demanding tribute. This was denied by Odo, Count of Paris, despite the fact that he could assemble only a couple of hundred soldiers to defend the city. The Vikings attacked with a variety of siege engines, but failed to break through the city walls after some days of intense attacks. The siege was upheld after the initial attacks, but without any significant offence for months after the attack. As the siege went on, most of the Vikings left Paris to pillage further upriver. The Vikings made a final unsuccessful attempt to take the city during the summer, and in October, Charles the Fat arrived with his army.  To the frustration of the Parisians who had fought for a long time to defend the city, Charles stopped short of attacking the Viking besiegers, and instead allowed them to sail further up the Seine to raid Burgundy (which was in revolt), as well as promising a payment of 700 livres (257 kg) of silver. Odo, highly critical of this, tried his best to defy the promises of Charles, and when Charles died in 888, Odo was elected the first non-Carolingian king of the Franks. "
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.469970703124998,
+          55.32289421921913
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Sigurd",
+        "LastName": "Snake In The Eye",
+        "Relation": "40th Great Grandfather",
+        "Spouse": "Heluna Blaeja Aellasdatter (784-850)",
+        "Born": "Unknown",
+        "Died": 887,
+        "Children": "Alof Sigurdsdottir, Thora Sigurdsdottir, Sven Gormsforfader, Aslaug Sigurdsdottir",
+        "Bio": "Snake-in-the-eye' denoted a physical characteristic. He was born with a mark in his eye, described as the image of the Ouroboros (a snake biting its own tail). The snake mark had been prophesied by his mother Aslaug."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          9.041748046875,
+          55.42277902267131
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Heluna Blaeja",
+        "LastName": "Aellasdatter",
+        "Relation": "40th Great Grandmother",
+        "Spouse": "Sigurd Snake In The Eye (Unknown - 887)",
+        "Born": 784,
+        "Died": 850,
+        "Children": "Alof Sigurdsdottir, Thora Sigurdsdottir, Sven Gormsforfader, Aslaug Sigurdsdottir",
+        "Bio": "Thus, Ragnarsson then reports that Sigurd Snake-in-Eye married King Ælla's daughter Blæja. They had a son, Hardeknud, who followed his father as king of Zealand, Skåne and Halland, while the areas around the Oslo Fjord freed themselves. Gorm is noted as Hardeknud's son. "
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.184326171875,
+          55.32914440840507
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Ragnar",
+        "LastName": "Lodbrok",
+        "Relation": "41st Great Grandfather",
+        "Spouse": "Aslaug Sigurdsdatter (760 - Deceased)",
+        "Born": "Unknown",
+        "Died": 867,
+        "Children": "Ivar Ragnarsson, Sigurd Snake In The Eye, Bjorn Jarnsida, Hvitserk Ragnarsson",
+        "Bio": "Lodbrok or Lothbrok, Old Norse for shaggy breeches, a legendary Norse Viking hero, as well as Danish and Swedish king. According to the sagas, Ragnar Lodbrok's father was the Swedish king Sigurd Ring."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          7.3828125,
+          58.21702494960191
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Aslaug",
+        "LastName": "Sigurdsdatter",
+        "Relation": "41st Great Grandmother",
+        "Spouse": "Ragnar Lodbrok (Unknown - 867)",
+        "Born": 760,
+        "Died": 870,
+        "Children": "Ivar Ragnarsson, Sigurd Snake In The Eye, Bjorn Jarnsida, Hvitserk Ragnarsson",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          14.844052791595459,
+          56.90361286201159
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "King Sigurd",
+        "LastName": "Ring",
+        "Relation": "42nd Great Grandfather",
+        "Spouse": "Alfhild (735 - 810)",
+        "Born": 724,
+        "Died": 812,
+        "Children": "Ragnar Lodbrok",
+        "Bio": "King of Denmark and Sweden"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          17.642669677734375,
+          59.867572594860526
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Queen Alfhild",
+        "LastName": "Gandolfsdatter of Denmark",
+        "Relation": "42nd Great Grandmother",
+        "Spouse": "King Sigurd Ring (724 - 812)",
+        "Born": 735,
+        "Died": 810,
+        "Children": "Ragnar Lodbrok",
+        "Bio": "Queen Athold Alfhild Gandolfsdatter of Denmark"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.77458381652832,
+          59.87905330657052
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "King Gandalf",
+        "LastName": "\"The Old\" Alfgeirsson",
+        "Relation": "43rd Great Grandfather",
+        "Spouse": "Gauthild Alfsdottir (712 - 768)",
+        "Born": 685,
+        "Died": "19 September 768",
+        "Children": "Helsing Gandolfsson, Alfhild, Hysing Gandolfsson, Haki Gandolfsson",
+        "Bio": "Gandalf Alfgeirsson was king of the petty kingdom Vingulmark, in South-Eastern Norway. "
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.9698486328125,
+          57.276073325903084
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Randver",
+        "LastName": "Radbardsson Prince of Gardariki, King of Lethra",
+        "Relation": "43rd Great Grandfather",
+        "Spouse": "Asa Haraldsdottir of Agder",
+        "Born": 688,
+        "Died": 730,
+        "Children": "Sigurd Ring",
+        "Bio": "Killed during the epic sea battle of Bravik."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          29.94873046875,
+          59.66774058164963
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Radbard",
+        "LastName": "of Gardariki",
+        "Relation": "44th Great Grandfather",
+        "Spouse": "Audr Ivarsdottir (650 - Deceased)",
+        "Born": "Unknown",
+        "Died": "Deceased",
+        "Children": "Randver Radbardsson",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          30.926513671875004,
+          59.59553575879331
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Audr",
+        "LastName": "Ivarsdottir",
+        "Relation": "44th Great Grandmother",
+        "Spouse": "Radbard of Gardariki",
+        "Born": 650,
+        "Died": "Deceased",
+        "Children": "Randver Radbardsson",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          17.6715087890625,
+          59.79303481926257
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Ivar",
+        "LastName": "Vidfamne",
+        "Relation": "45th Great Grandfather",
+        "Spouse": "Unknown",
+        "Born": "Unknown",
+        "Died": "Deceased",
+        "Children": "Audr Ivarsdottir",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.963867187499998,
+          58.309488840677645
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "King Halfdan",
+        "LastName": "the Valiant Haraldsson",
+        "Relation": "46th Great Grandfather",
+        "Spouse": "Moalda Digri Kinriksdottir",
+        "Born": 590,
+        "Died": 650,
+        "Children": "Solveig Halfdansdatter, King Thrond Haraldsson, Eric Halfdansson, Annalo or Ring Halfdansson, King Godelaib, Ivar Vidfamne",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.1898193359375,
+          56.17308107207619
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Moalda Digri",
+        "LastName": "Kinriksdottir Queen of Sweden",
+        "Relation": "46th Great Grandmother",
+        "Spouse": "King Halfdan the Valiant Haraldsson (590 - 650)",
+        "Born": 594,
+        "Died": "Deceased",
+        "Children": "Solveig Halfdansdatter, King Thrond Haraldsson, Eric Halfdansson, Annalo or Ring Halfdansson, King Godelaib, Ivar Vidfamne",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          9.926147460937498,
+          56.203648570004034
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Harald",
+        "LastName": "Valdersson The Old King of Denmark",
+        "Relation": "47th Great Grandfather",
+        "Spouse": "Princess Hildur Heidreksdatter (572 - 592)",
+        "Born": 568,
+        "Died": 612,
+        "Children": "Halfdan The Valiant Haraldsson, Gudrud Haraldsson",
+        "Bio": "Known as Harald Den Gamle (The Old) King of Denmark, Gautland Roeskide Hroar Wartooth."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          9.4097900390625,
+          56.93898127004867
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Princess Hildur",
+        "LastName": "Heidreksdatter of the Vandals",
+        "Relation": "47th Great Grandmother",
+        "Spouse": "Harald Valdersson The Old King of Denmark (568 - 612)",
+        "Born": 572,
+        "Died": 592,
+        "Children": "Halfdan The Valiant Haraldsson, Gudrud Haraldsson",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.1513671875,
+          56.74971110497152
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Valdar \"The Mild\"",
+        "LastName": "Hroarsson King of Roskilde",
+        "Relation": "48th Great Grandfather",
+        "Spouse": "Princess Hildis Hildericsdatter (483 - 572)",
+        "Born": 547,
+        "Died": 587,
+        "Children": "Harald hinn Gamli, Frode Valdarsson, Cynric, Frode VIII Valdarsson, Harald Valdarsson The Old King of Denmark",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          11.99432373046875,
+          55.660932793895064
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Princess Hildis",
+        "LastName": "Hildericsdatter of the Vandals of Africa",
+        "Relation": "48th Great Grandmother",
+        "Spouse": "Valdar \"The Mild\" Hroarsson King of Roskilde",
+        "Born": 483,
+        "Died": 572,
+        "Children": "Harald hinn Gamli, Frode Valdarsson, Cynric, Frode VIII Valdarsson, Harald Valdarsson The Old King of Denmark",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.26123046875,
+          36.78289206199065
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Hroarr",
+        "LastName": "Hraerek of Denmark",
+        "Relation": "49th Great Grandfather",
+        "Spouse": "Ogne Northumbria",
+        "Born": 526,
+        "Died": 620,
+        "Children": "Valdar \"The Mild\" Hroarsson King of Roskilde",
+        "Bio": "He was slain by Hodbrodd, and avenged by his brother Helgi."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.22503662109375,
+          55.5616508394963
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Ogne",
+        "LastName": "Northumbria",
+        "Relation": "49th Great Grandmother",
+        "Spouse": "Hroarr Hraerek of Denmark (526 - 620)",
+        "Born": "Unknown",
+        "Died": "Deceased",
+        "Children": "Valdar \"The Mild\" Hroarsson King of Roskilde",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.0846557617187496,
+          55.68068160461293
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "King Halfdan",
+        "LastName": "Frodasson of the Danes and Leijre",
+        "Relation": "50th Great Grandfather",
+        "Spouse": "Queen Sigris Aunsdotter of Denmark (512 - 550)",
+        "Born": 503,
+        "Died": 557,
+        "Children": "Helga Halfdansdotter, Yrsa or Signy, Hrothgar Halfdansson, Helgi Halfdansson, King Frode, Skolding King Hrothgar II, Hroarr Hraerek, Olaf Halfdansson, Roric of Lethra, Elan Halfdansdatter, Jarl Evar, Queen Ursula",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          17.413330078125,
+          60.182501529929304
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Queen Sigris",
+        "LastName": "Aunsdotter of Denmark",
+        "Relation": "50th Great Grandmother",
+        "Spouse": "King Halfdan Frodasson of the Danes and Leijre",
+        "Born": 512,
+        "Died": 550,
+        "Children": "Helga Halfdansdotter, Yrsa or Signy, Hrothgar Halfdansson, Helgi Halfdansson, King Frode, Skolding King Hrothgar II, Hroarr Hraerek, Olaf Halfdansson, Roric of Lethra, Elan Halfdansdatter, Jarl Evar, Queen Ursula",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.6273193359375,
+          60.048389180435564
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "King Frodi \"The Peaceful\"",
+        "LastName": "Dansson of Lethra and Denmark",
+        "Relation": "51st Great Grandfather",
+        "Spouse": "Hilde or Afhild Aalesdottir (456 - 488)",
+        "Born": 433,
+        "Died": 524,
+        "Children": "King Halfdan Frodasson of the Danes and Leijre",
+        "Bio": "King of Sweden and Denmark"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          9.939880371093748,
+          57.56888774130087
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Hilde",
+        "LastName": "Aalesdottir",
+        "Relation": "51st Great Grandmother",
+        "Spouse": "King Frodi \"The Peaceful\" Dansson of Lethra and Denmark (433 - 524)",
+        "Born": 456,
+        "Died": 488,
+        "Children": "King Halfdan Frodasson of the Danes and Leijre",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          8.624267578125,
+          57.08254550582424
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "King Danp",
+        "LastName": "Rigsson of Sweden and Denmark",
+        "Relation": "52nd Great Grandfather",
+        "Spouse": "Queen Olof Vermundardotter of Denmark (417 - 460)",
+        "Born": 340,
+        "Died": "Deceased",
+        "Children": "King Frodi \"The Peaceful\"",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          17.749786376953125,
+          59.826183314086784
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Queen Olof",
+        "LastName": "Vermundardotter of Denmark",
+        "Relation": "52nd Great Grandmother",
+        "Spouse": "King Danp Rigsson of Sweden and Denmark (340 - Deceased)",
+        "Born": 417,
+        "Died": 460,
+        "Children": "King Frodi \"The Peaceful\"",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          11.946945190429688,
+          55.6002688064361
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "FirstName": "Rigs",
+        "LastName": "King of Sweden",
+        "Relation": "53rd Great Grandfather",
+        "Spouse": "Mrs Riggs Queen of Sweden",
+        "Born": 315,
+        "Died": "Deceased",
+        "Children": "King Danp Rigsson of Sweden and Denmark",
+        "Bio": ""
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          17.2320556640625,
+          59.88066847319146
+        ]
+      }
+    }
+  ]
+};
+      
+      /**
+       * Assign a unique id to each store. You'll use this `id`
+       * later to associate each point on the map with a listing
+       * in the sidebar.
+      */
+      ancestors.features.forEach(function(store, i){
+        store.properties.id = i;
+      });
+
+      /**
+       * Wait until the map loads to make changes to the map.
+      */
+      map.on('load', function (e) {
+        /** 
+         * This is where your '.addLayer()' used to be, instead
+         * add only the source without styling a layer
+        */
+        map.addSource("places", {
+          "type": "geojson",
+          "data": ancestors
+        });
+
+        /**
+         * Add all the things to the page:
+         * - The location listings on the side of the page
+         * - The markers onto the map
+        */
+        buildLocationList(ancestors);
+        addMarkers();
+      });
+
+      /**
+       * Add a marker to the map for every store listing.
+      **/
+      function addMarkers() {
+        /* For each feature in the GeoJSON object above: */
+        ancestors.features.forEach(function(marker) {
+          /* Create a div element for the marker. */
+          var el = document.createElement('div');
+          /* Assign a unique `id` to the marker. */
+          el.id = "marker-" + marker.properties.id;
+          /* Assign the `marker` class to each marker for styling. */
+          el.className = 'marker';
+          
+          /**
+           * Create a marker using the div element
+           * defined above and add it to the map.
+          **/
+          new mapboxgl.Marker(el, { offset: [0, -23] })
+            .setLngLat(marker.geometry.coordinates)
+            .addTo(map);
+
+          /**
+           * Listen to the element and when it is clicked, do three things:
+           * 1. Fly to the point
+           * 2. Close all other popups and display popup for clicked store
+           * 3. Highlight listing in sidebar (and remove highlight for all other listings)
+          **/
+          el.addEventListener('click', function(e){
+            /* Fly to the point */
+            flyToAncestor(marker);
+            /* Close all other popups and display popup for clicked store */
+            createPopUp(marker);
+            /* Highlight listing in sidebar */
+            var activeItem = document.getElementsByClassName('active');
+            e.stopPropagation();
+            if (activeItem[0]) {
+              activeItem[0].classList.remove('active');
+            }
+            var listing = document.getElementById('listing-' + marker.properties.id);
+            listing.classList.add('active');
+          });
+        });
+      }
+
+      /**
+       * Add a listing for each store to the sidebar.
+      **/
+      function buildLocationList(data) {
+        data.features.forEach(function(store, i){
+          /**
+           * Create a shortcut for `store.properties`,
+           * which will be used several times below.
+          **/
+          var prop = store.properties;
+
+          /* Add a new listing section to the sidebar. */
+          var listings = document.getElementById('listings');
+          var listing = listings.appendChild(document.createElement('div'));
+          /* Assign a unique `id` to the listing. */
+          listing.id = "listing-" + prop.id;
+          /* Assign the `item` class to each listing for styling. */
+          listing.className = 'item';
+
+          /* Add the link to the individual listing created above. */
+          var link = listing.appendChild(document.createElement('a'));
+          link.href = '#';
+          link.className = 'title';
+          link.id = "link-" + prop.id;
+          link.innerHTML = "<center>" + prop.FirstName + " " + prop.LastName + "<br>" + prop.Born + " - " + prop.Died + "</center>";
+
+          /* Add details to the individual listing. */
+          var details = listing.appendChild(document.createElement('div'));
+          details.innerHTML = '<b><center>' + prop.Relation + '</center></b>';
+          if (prop.Bio) {
+            details.innerHTML += '<p><center>' + prop.Bio + '</center></p>';
+          }
+
+          /**
+           * Listen to the element and when it is clicked, do four things:
+           * 1. Update the `currentFeature` to the store associated with the clicked link
+           * 2. Fly to the point
+           * 3. Close all other popups and display popup for clicked store
+           * 4. Highlight listing in sidebar (and remove highlight for all other listings)
+          **/
+          link.addEventListener('click', function(e){
+            for (var i=0; i < data.features.length; i++) {
+              if (this.id === "link-" + data.features[i].properties.id) {
+                var clickedListing = data.features[i];
+                flyToAncestor(clickedListing);
+                createPopUp(clickedListing);
+              }
+            }
+            var activeItem = document.getElementsByClassName('active');
+            if (activeItem[0]) {
+              activeItem[0].classList.remove('active');
+            }
+            this.parentNode.classList.add('active');
+          });
+        });
+      }
+
+      /**
+       * Use Mapbox GL JS's `flyTo` to move the camera smoothly
+       * a given center point.
+      **/
+      function flyToAncestor(currentFeature) {
+        map.flyTo({
+          center: currentFeature.geometry.coordinates,
+          zoom: 10
+        });
+      }
+
+      /**
+       * Create a Mapbox GL JS `Popup`.
+      **/
+      function createPopUp(currentFeature) {
+        var popUps = document.getElementsByClassName('mapboxgl-popup');
+        if (popUps[0]) popUps[0].remove();
+        var popup = new mapboxgl.Popup({closeButton: true, closeOnClick: true})
+          .setLngLat(currentFeature.geometry.coordinates)
+          .setHTML('<h3><center>' + currentFeature.properties.FirstName + ' ' + currentFeature.properties.LastName + '</center></h3>' +
+            '<h4><b>Relation: </b>' + currentFeature.properties.Relation + '<br> <b>Born: </b>' + currentFeature.properties.Born + ' to ' + currentFeature.properties.Died + '<br><b>Spouse:</b> ' + currentFeature.properties.Spouse + '<br><b>Children:</b> ' + currentFeature.properties.Children)
+          .addTo(map);
+      }
+    </script>
+  </body>
+</html>
